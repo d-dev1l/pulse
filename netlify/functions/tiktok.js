@@ -2,7 +2,7 @@
 // TikTok scraper using tiktok82.p.rapidapi.com (datauniverse, updated daily)
 //
 // Required env var in Netlify dashboard:
-//   RAPIDAPI_KEY = 2b38b98bf6msh7c278ae47bd93b0p1d1928jsn060fc738b1af
+//  
 //
 // Endpoint: /.netlify/functions/tiktok
 
