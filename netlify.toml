@@ -1,0 +1,17 @@
+[build]
+  publish = "."
+  command = ""
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/reddit"
+  to = "/.netlify/functions/reddit"
+  status = 200
+
+[[redirects]]
+  from = "/api/tiktok"
+  to = "/.netlify/functions/tiktok"
+  status = 200
