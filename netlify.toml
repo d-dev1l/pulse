@@ -1,12 +1,9 @@
 [build]
   publish = "."
-  command = ""
-
-[build.environment]
-  SECRETS_SCAN_ENABLED = "false"
+  command = "echo 'build'"
 
 [functions]
-  directory = "netlify/functions"
+  directory = "functions"
   node_bundler = "esbuild"
 
 [[redirects]]
