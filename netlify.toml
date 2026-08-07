@@ -3,7 +3,7 @@
   command = ""
 
 [functions]
-  directory = "netlify/functions"
+  directory = "."
   node_bundler = "esbuild"
 
 [[redirects]]
