@@ -1,10 +1,11 @@
 const KEY  = process.env.RAPIDAPI_KEY || '';
 const HOST = 'tiktok82.p.rapidapi.com';
 
-const HASHTAGS = ['ai','tech','viral','trending','innovation','lifehack','future','startup','mindfulness','science'];
+const KEYWORDS = ['ai technology','viral life hack','trending 2026','future tech','startup launch'];
+const HASHTAGS = ['ai','viral','tech','trending','innovation','lifehack'];
 
 const CAT_WORDS = {
-  AI:['ai','gpt','chatgpt','openai','llm','robot','neural','tech'],
+  AI:['ai','gpt','chatgpt','openai','llm','robot','neural','automation'],
   Technology:['tech','app','software','code','saas','dev','digital','phone'],
   Finance:['crypto','bitcoin','money','invest','stock','finance','trading'],
   Gaming:['game','gaming','twitch','steam','ps5','xbox','minecraft'],
@@ -39,9 +40,18 @@ function satLabel(ageH, views) {
   return                      { label:'🟠 Mid-wave',    color:'#F97316', tip:'Active spread — entering mainstream' };
 }
 
-function fmt(n) {
-  return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : String(n||0);
-}
+const fmt = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : String(n||0);
+
+const catThumb = cat => ({
+  AI:'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=500&q=75',
+  Technology:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=500&q=75',
+  Finance:'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500&q=75',
+  Gaming:'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=500&q=75',
+  Food:'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&q=75',
+  Science:'https://images.unsplash.com/photo-1532094349884-543559c98d1c?w=500&q=75',
+  Entertainment:'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&q=75',
+  Sports:'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=500&q=75',
+}[cat] || 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=500&q=75');
 
 function call(path) {
   return fetch(`https://${HOST}${path}`, {
@@ -51,92 +61,80 @@ function call(path) {
 }
 
 function toPost(item, tag) {
-  const author  = item.author  || item.authorInfo  || {};
-  const stats   = item.stats   || item.statsV2     || item.statistics || {};
-  const video   = item.video   || {};
-  const handle  = author.uniqueId || author.unique_id || author.id || 'creator';
-  const name    = author.nickname || author.name || handle;
-  const avatar  = author.avatarThumb || author.avatar_thumb || null;
-  const plays   = Number(stats.playCount   || stats.play_count   || item.playCount   || 0);
-  const likes   = Number(stats.diggCount   || stats.digg_count   || item.diggCount   || 0);
-  const cmts    = Number(stats.commentCount|| stats.comment_count|| item.commentCount || 0);
-  const shares  = Number(stats.shareCount  || stats.share_count  || item.shareCount  || 0);
-  const desc    = item.desc || item.description || item.title || '';
-  const videoId = item.id   || item.aweme_id    || item.video_id  || '';
-  const thumb   = video.cover || video.originCover || video.dynamicCover || item.thumbnail || avatar || null;
-  const created = Number(item.createTime || item.create_time || 0) * 1000 || Date.now();
-  const ageH    = Math.max(0.1, (Date.now() - created) / 3600000);
-  const score   = calcScore(plays, likes, cmts, shares, ageH);
-  const cat     = detectCat(desc + ' ' + tag);
-  const hashtags = (item.challenges || item.textExtra || [])
-    .map(c => '#' + (c.title || c.hashtagName || '')).filter(h => h.length > 1);
-  const topComments = (item.comments || []).slice(0, 3).map(c => ({
-    user: '@' + (c.user?.uniqueId || c.author?.uniqueId || 'user'),
-    text: (c.text || c.comment || '').slice(0, 120),
-    likes: Number(c.diggCount || c.like_count || 0),
-    avatar: c.user?.avatarThumb || null,
-  }));
+  const author = item.author || item.authorInfo || {};
+  const stats  = item.stats  || item.statsV2    || item.statistics || {};
+  const video  = item.video  || {};
+  const handle = author.uniqueId || author.unique_id || 'creator';
+  const plays  = Number(stats.playCount  || stats.play_count  || 0);
+  const likes  = Number(stats.diggCount  || stats.digg_count  || 0);
+  const cmts   = Number(stats.commentCount || stats.comment_count || 0);
+  const shares = Number(stats.shareCount || stats.share_count || 0);
+  const desc   = item.desc || item.description || '';
+  const vid    = item.id   || item.aweme_id    || '';
+  const thumb  = video.cover || video.originCover || catThumb(detectCat(desc));
+  const created = Number(item.createTime || 0) * 1000 || Date.now();
+  const ageH   = Math.max(0.1, (Date.now() - created) / 3600000);
+  const cat    = detectCat(desc + ' ' + tag);
   return {
-    id: 'tt-' + (videoId || Math.random().toString(36).slice(2)),
-    platform: 'tiktok', creator_name: name, creator_handle: '@' + handle,
-    creator_avatar: avatar, caption: desc.slice(0, 220), thumbnail: thumb,
-    url: `https://www.tiktok.com/@${handle}/video/${videoId}`,
-    hashtags, views: plays, upvotes: likes, likes, comments: cmts, shares,
-    trend_score: score, category: cat, sat: satLabel(ageH, plays),
+    id: 'tt-' + (vid || Math.random().toString(36).slice(2)),
+    platform: 'tiktok',
+    creator_name: author.nickname || handle,
+    creator_handle: '@' + handle,
+    creator_avatar: author.avatarThumb || null,
+    caption: desc.slice(0, 220),
+    thumbnail: thumb,
+    url: `https://www.tiktok.com/@${handle}/video/${vid}`,
+    views: plays, upvotes: likes, likes, comments: cmts, shares,
+    trend_score: calcScore(plays, likes, cmts, shares, ageH),
+    category: cat, sat: satLabel(ageH, plays),
     growth_label: '+' + fmt(Math.round(plays / Math.max(ageH, 1))) + '/hr',
     growth_rate: Math.round(plays / Math.max(ageH, 1)),
-    is_early: ageH < 12 && score > 50,
-    posted_at: new Date(created).toISOString(), age_hours: ageH, top_comments: topComments,
+    is_early: ageH < 12,
+    posted_at: new Date(created).toISOString(),
+    age_hours: ageH, top_comments: [],
   };
 }
 
-async function fetchTrending() {
-  for (const ep of ['/trending?region=US&count=20','/feed/trending?region=US&count=20','/getTrendingFeed?region=US&count=20']) {
-    try {
-      const res = await call(ep); if (!res.ok) continue;
-      const json = await res.json();
-      const items = json?.data?.videos || json?.data?.items || json?.videos || json?.items || json?.itemList || (Array.isArray(json)?json:null);
-      if (items?.length) return items.map(i => toPost(i, 'trending'));
-    } catch {}
-  }
-  return [];
+function extract(json) {
+  return json?.data?.videos || json?.data?.items || json?.data?.itemList ||
+         json?.videos || json?.items || json?.itemList || json?.data ||
+         (Array.isArray(json) ? json : []);
 }
 
-async function fetchHashtag(tag) {
-  for (const ep of [`/hashtag/videos?name=${tag}&count=10`,`/challenge/posts?name=${tag}&count=10`,`/video/hashtag?name=${tag}&count=10`]) {
-    try {
-      const res = await call(ep); if (!res.ok) continue;
-      const json = await res.json();
-      const items = json?.data?.videos || json?.data?.items || json?.videos || json?.items || json?.itemList || (Array.isArray(json)?json:null);
-      if (items?.length) return items.map(i => toPost(i, tag));
-    } catch {}
-  }
-  return [];
+async function tryEndpoint(path, tag) {
+  try {
+    const res = await call(path);
+    if (!res.ok) return [];
+    const json = await res.json();
+    const items = extract(json);
+    return Array.isArray(items) ? items.map(i => toPost(i, tag)) : [];
+  } catch { return []; }
 }
 
 exports.handler = async () => {
   const headers = { 'Access-Control-Allow-Origin':'*', 'Content-Type':'application/json', 'Cache-Control':'public, max-age=300' };
-
-  if (!KEY) {
-    return { statusCode:503, headers, body:JSON.stringify({ ok:false, error:'RAPIDAPI_KEY not set in environment variables.' }) };
-  }
+  if (!KEY) return { statusCode:503, headers, body:JSON.stringify({ ok:false, error:'RAPIDAPI_KEY not set.' }) };
 
   const posts = [];
-  const trending = await fetchTrending();
-  posts.push(...trending);
 
-  const hashtagResults = await Promise.allSettled(HASHTAGS.slice(0,6).map(tag => fetchHashtag(tag)));
-  hashtagResults.forEach(r => { if (r.status==='fulfilled') posts.push(...r.value); });
+  const fetches = [
+    ...KEYWORDS.map(kw => tryEndpoint(`/getVideosByKeyword?keyword=${encodeURIComponent(kw)}&count=10&cursor=0`, kw)),
+    ...HASHTAGS.slice(0,3).map(tag => tryEndpoint(`/getChallengeVideos?challengeName=${encodeURIComponent(tag)}&count=10&cursor=0`, tag)),
+    ...KEYWORDS.slice(0,2).map(kw => tryEndpoint(`/getSearchVideos?keyword=${encodeURIComponent(kw)}&count=10&cursor=0`, kw)),
+  ];
+
+  const results = await Promise.allSettled(fetches);
+  results.forEach(r => { if (r.status === 'fulfilled') posts.push(...r.value); });
 
   const seen = new Set();
   const deduped = posts
     .filter(p => p.views > 0 || p.likes > 0)
-    .filter(p => { if(seen.has(p.id)) return false; seen.add(p.id); return true; })
-    .sort((a,b) => b.trend_score - a.trend_score)
+    .filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; })
+    .sort((a, b) => b.trend_score - a.trend_score)
     .slice(0, 30);
 
-  if (deduped.length === 0) {
-    return { statusCode:503, headers, body:JSON.stringify({ ok:false, error:'No TikTok data returned. Check RAPIDAPI_KEY and tiktok82 subscription.' }) };
+  if (!deduped.length) {
+    return { statusCode:503, headers, body:JSON.stringify({ ok:false, error:'TikTok API returned no videos. Check RAPIDAPI_KEY subscription to tiktok82.' }) };
   }
 
   return { statusCode:200, headers, body:JSON.stringify({ ok:true, count:deduped.length, scraped_at:new Date().toISOString(), posts:deduped }) };
