@@ -228,7 +228,7 @@ let redditErr = '', tiktokErr = '';
 async function fetchReddit() {
   setStatus('reddit','loading');
   try {
-    const res = await fetch('/api/reddit');
+    const res = await fetch('/.netlify/functions/reddit');
     const data = await res.json();
     if (!res.ok || !data.ok) { redditErr = data.error||'HTTP '+res.status; throw new Error(redditErr); }
     setStatus('reddit','ok');
@@ -245,7 +245,7 @@ async function fetchReddit() {
 async function fetchTikTok() {
   setStatus('tiktok','loading');
   try {
-    const res = await fetch('/api/tiktok');
+    const res = await fetch('/.netlify/functions/tiktok');
     const data = await res.json();
     if (!res.ok || !data.ok) { tiktokErr = data.error||'HTTP '+res.status; throw new Error(tiktokErr); }
     setStatus('tiktok','ok');
