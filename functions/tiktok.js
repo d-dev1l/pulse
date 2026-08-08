@@ -1,8 +1,8 @@
 const KEY  = process.env.RAPIDAPI_KEY || '';
 const HOST = 'tiktok82.p.rapidapi.com';
 
-const KEYWORDS = ['ai technology','viral life hack','trending 2026','future tech','startup launch'];
-const HASHTAGS = ['ai','viral','tech','trending','innovation','lifehack'];
+const KEYWORDS = ['ai technology','viral trend','life hack','future tech','startup'];
+const HASHTAGS = ['ai','viral','tech','trending','lifehack'];
 
 const CAT_WORDS = {
   AI:['ai','gpt','chatgpt','openai','llm','robot','neural','automation'],
@@ -16,7 +16,7 @@ const CAT_WORDS = {
 };
 
 function detectCat(text) {
-  const t = text.toLowerCase();
+  const t = (text||'').toLowerCase();
   let best = 'Entertainment', bestN = 0;
   for (const [cat, words] of Object.entries(CAT_WORDS)) {
     const n = words.filter(w => t.includes(w)).length;
@@ -26,10 +26,10 @@ function detectCat(text) {
 }
 
 function calcScore(views, likes, comments, shares, ageH) {
-  const eng  = views > 0 ? Math.min(30, ((likes + comments*3 + shares*5) / views) * 300) : 0;
-  const vel  = Math.min(35, Math.log10(Math.max(1, views / Math.max(ageH, 1))) * 9);
-  const rec  = Math.max(0, 25 - ageH * 0.5);
-  const big  = Math.min(10, Math.log10(views + 1) * 2);
+  const eng = views > 0 ? Math.min(30, ((likes + comments*3 + shares*5) / views) * 300) : 0;
+  const vel = Math.min(35, Math.log10(Math.max(1, views / Math.max(ageH, 1))) * 9);
+  const rec = Math.max(0, 25 - ageH * 0.5);
+  const big = Math.min(10, Math.log10(views + 1) * 2);
   return Math.round(Math.min(99, eng + vel + rec + big));
 }
 
@@ -61,26 +61,28 @@ function call(path) {
 }
 
 function toPost(item, tag) {
-  const author = item.author || item.authorInfo || {};
-  const stats  = item.stats  || item.statsV2    || item.statistics || {};
-  const video  = item.video  || {};
-  const handle = author.uniqueId || author.unique_id || 'creator';
-  const plays  = Number(stats.playCount  || stats.play_count  || 0);
-  const likes  = Number(stats.diggCount  || stats.digg_count  || 0);
-  const cmts   = Number(stats.commentCount || stats.comment_count || 0);
-  const shares = Number(stats.shareCount || stats.share_count || 0);
-  const desc   = item.desc || item.description || '';
-  const vid    = item.id   || item.aweme_id    || '';
-  const thumb  = video.cover || video.originCover || catThumb(detectCat(desc));
-  const created = Number(item.createTime || 0) * 1000 || Date.now();
-  const ageH   = Math.max(0.1, (Date.now() - created) / 3600000);
-  const cat    = detectCat(desc + ' ' + tag);
+  const author  = item.author || {};
+  const handle  = author.unique_id || author.uniqueId || 'creator';
+  const name    = author.nickname || handle;
+  const avatar  = author.avatar || author.avatarThumb || null;
+  const plays   = Number(item.play_count   || item.playCount   || 0);
+  const likes   = Number(item.collect_count || item.diggCount  || item.like_count || 0);
+  const cmts    = Number(item.comment_count || item.commentCount || 0);
+  const shares  = Number(item.share_count  || item.shareCount  || 0);
+  const desc    = item.title || item.desc || item.description || '';
+  const vid     = item.video_id || item.id || item.aweme_id || '';
+  const thumb   = item.cover || item.ai_dynamic_cover || item.origin_cover ||
+                  (item.video && (item.video.cover || item.video.originCover)) ||
+                  catThumb(detectCat(desc));
+  const created = Number(item.create_time || item.createTime || 0) * 1000 || Date.now();
+  const ageH    = Math.max(0.1, (Date.now() - created) / 3600000);
+  const cat     = detectCat(desc + ' ' + tag);
   return {
     id: 'tt-' + (vid || Math.random().toString(36).slice(2)),
     platform: 'tiktok',
-    creator_name: author.nickname || handle,
+    creator_name: name,
     creator_handle: '@' + handle,
-    creator_avatar: author.avatarThumb || null,
+    creator_avatar: avatar,
     caption: desc.slice(0, 220),
     thumbnail: thumb,
     url: `https://www.tiktok.com/@${handle}/video/${vid}`,
@@ -95,46 +97,51 @@ function toPost(item, tag) {
   };
 }
 
-function extract(json) {
-  return json?.data?.videos || json?.data?.items || json?.data?.itemList ||
-         json?.videos || json?.items || json?.itemList || json?.data ||
-         (Array.isArray(json) ? json : []);
-}
-
-async function tryEndpoint(path, tag) {
+async function fetchKeyword(keyword) {
   try {
-    const res = await call(path);
+    const res = await call(`/getVideosByKeyword?keyword=${encodeURIComponent(keyword)}&count=10&cursor=0`);
     if (!res.ok) return [];
     const json = await res.json();
-    const items = extract(json);
+    const items = json?.data?.videos || json?.data?.items || json?.videos || json?.items || [];
+    return Array.isArray(items) ? items.map(i => toPost(i, keyword)) : [];
+  } catch(e) { return []; }
+}
+
+async function fetchHashtag(tag) {
+  try {
+    const res = await call(`/getChallengeVideos?challengeName=${encodeURIComponent(tag)}&count=10&cursor=0`);
+    if (!res.ok) return [];
+    const json = await res.json();
+    const items = json?.data?.videos || json?.data?.items || json?.videos || json?.items || [];
     return Array.isArray(items) ? items.map(i => toPost(i, tag)) : [];
-  } catch { return []; }
+  } catch(e) { return []; }
 }
 
 exports.handler = async () => {
-  const headers = { 'Access-Control-Allow-Origin':'*', 'Content-Type':'application/json', 'Cache-Control':'public, max-age=300' };
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Content-Type': 'application/json',
+    'Cache-Control': 'public, max-age=300',
+  };
+
   if (!KEY) return { statusCode:503, headers, body:JSON.stringify({ ok:false, error:'RAPIDAPI_KEY not set.' }) };
 
   const posts = [];
-
-  const fetches = [
-    ...KEYWORDS.map(kw => tryEndpoint(`/getVideosByKeyword?keyword=${encodeURIComponent(kw)}&count=10&cursor=0`, kw)),
-    ...HASHTAGS.slice(0,3).map(tag => tryEndpoint(`/getChallengeVideos?challengeName=${encodeURIComponent(tag)}&count=10&cursor=0`, tag)),
-    ...KEYWORDS.slice(0,2).map(kw => tryEndpoint(`/getSearchVideos?keyword=${encodeURIComponent(kw)}&count=10&cursor=0`, kw)),
-  ];
-
-  const results = await Promise.allSettled(fetches);
+  const results = await Promise.allSettled([
+    ...KEYWORDS.map(kw => fetchKeyword(kw)),
+    ...HASHTAGS.slice(0,3).map(tag => fetchHashtag(tag)),
+  ]);
   results.forEach(r => { if (r.status === 'fulfilled') posts.push(...r.value); });
 
   const seen = new Set();
   const deduped = posts
-    .filter(p => p.views > 0 || p.likes > 0)
+    .filter(p => p && (p.views > 0 || p.likes > 0))
     .filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; })
     .sort((a, b) => b.trend_score - a.trend_score)
     .slice(0, 30);
 
   if (!deduped.length) {
-    return { statusCode:503, headers, body:JSON.stringify({ ok:false, error:'TikTok API returned no videos. Check RAPIDAPI_KEY subscription to tiktok82.' }) };
+    return { statusCode:503, headers, body:JSON.stringify({ ok:false, error:'No TikTok videos returned.' }) };
   }
 
   return { statusCode:200, headers, body:JSON.stringify({ ok:true, count:deduped.length, scraped_at:new Date().toISOString(), posts:deduped }) };
