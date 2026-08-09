@@ -226,8 +226,7 @@ const catThumb=cat=>({AI:'https://images.unsplash.com/photo-1677442135703-1787ee
 
 // ── Supabase config (public anon key — safe to expose, RLS enforces read-only) ──
 const SB_URL = 'https://abpedxaniaqkxvlyypnt.supabase.co';
-const SB_ANON = 'sb_publishable_309a49yVLg89ogaKuYjDgg_C5pvc4hUqZ2g';
-
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFicGVkeGFuaWFxa3h2bHl5cG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNTM3ODUsImV4cCI6MjEwMTYyOTc4NX0.wcpW2EzTI4gGbOes5i0UTypyDpddFeV9CuZ5QSMqVZU';
 // Convert a Supabase trends row → the card schema the UI already expects
 function rowToPost(r) {
   const platform = r.source === 'youtube' ? 'youtube'
