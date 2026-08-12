@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pulse — Find emerging concepts before they peak</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#06060E;--ink2:#0D0D1F;--ink3:#13132B;
+  --g:rgba(255,255,255,0.04);--g2:rgba(255,255,255,0.07);--g3:rgba(255,255,255,0.12);
+  --l:rgba(255,255,255,0.07);--l2:rgba(255,255,255,0.13);--l3:rgba(255,255,255,0.22);
+  --signal:#6366F1;--signal2:#818CF8;--fire:#F97316;--nova:#EC4899;--volt:#22D3EE;
+  --grow:#10B981;--warn:#F59E0B;--danger:#EF4444;
+  --t1:#F1F5F9;--t2:#94A3B8;--t3:#475569;
+  --fd:'Syne',sans-serif;--fb:'Inter',sans-serif;--fm:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--ink);color:var(--t1);font-family:var(--fb);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{cursor:pointer;border:none;background:none;font-family:var(--fb);color:var(--t1)}
+input,select{font-family:var(--fb);color:var(--t1);outline:none}
+input::placeholder{color:var(--t3)}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--g3);border-radius:3px}
+
+/* ── Layout ── */
+#app{display:grid;grid-template-columns:220px 1fr;grid-template-rows:54px 1fr;height:100vh;overflow:hidden}
+#topnav{grid-column:1/-1;background:rgba(6,6,14,.97);backdrop-filter:blur(24px);border-bottom:1px solid var(--l);display:flex;align-items:center;gap:10px;padding:0 18px;z-index:100}
+.logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:16px;letter-spacing:-.5px;width:200px;cursor:pointer;flex-shrink:0}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,var(--signal),var(--volt));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.live-chip{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--grow);font-weight:600;white-space:nowrap}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--grow);box-shadow:0 0 8px var(--grow);animation:pulse-dot 1.5s infinite;flex-shrink:0}
+.search-bar{flex:1;max-width:460px;position:relative;margin:0 auto}
+.search-bar input{width:100%;background:var(--g2);border:1px solid var(--l);border-radius:9px;padding:8px 14px 8px 36px;font-size:13px;transition:border-color .2s}
+.search-bar input:focus{border-color:var(--signal)}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:14px;pointer-events:none}
+.scraper-bar{display:flex;align-items:center;gap:7px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.15);border-radius:7px;padding:4px 10px;flex-shrink:0}
+.spill{display:flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;transition:all .3s}
+.spill.ok{background:rgba(16,185,129,.12);color:#10B981}
+.spill.loading{background:rgba(99,102,241,.12);color:var(--signal2);animation:blink .9s infinite}
+.spill.err{background:rgba(239,68,68,.1);color:var(--danger)}
+.nav-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+.nav-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--l);background:var(--g);color:var(--t2);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s;cursor:pointer}
+.nav-btn:hover{background:var(--g2);color:var(--t1)}
+#sidebar{background:var(--ink2);border-right:1px solid var(--l);display:flex;flex-direction:column;overflow-y:auto;padding:14px 0}
+.nav-section{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--t3);padding:10px 18px 5px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 18px;cursor:pointer;color:var(--t2);font-size:12px;font-weight:500;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--t1);background:var(--g)}
+.nav-item.active{color:var(--t1);background:var(--g2);border-left-color:var(--signal)}
+.nav-badge{margin-left:auto;background:var(--fire);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px}
+.nav-hot{width:5px;height:5px;border-radius:50%;background:var(--fire);box-shadow:0 0 5px var(--fire);margin-left:auto;flex-shrink:0}
+.cat-list{padding:4px 10px}
+.cat-btn{display:flex;align-items:center;gap:7px;width:100%;padding:5px 8px;border-radius:7px;font-size:11px;color:var(--t2);cursor:pointer;transition:all .15s;background:transparent;text-align:left;border:none}
+.cat-btn:hover{background:var(--g);color:var(--t1)}
+.cat-btn.active{background:var(--g2);color:var(--t1)}
+.cat-count{margin-left:auto;font-size:10px;color:var(--t3);font-family:var(--fm)}
+#main{overflow-y:auto;background:var(--ink)}
+.view{display:none;min-height:calc(100vh - 54px)}
+.view.active{display:block}
+
+/* ── Page header ── */
+.page-header{padding:22px 24px 0}
+.page-title{font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:3px}
+.page-title em{font-style:normal;background:linear-gradient(135deg,var(--signal2),var(--volt));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.page-sub{font-size:12px;color:var(--t2);margin-bottom:4px}
+.page-tagline{font-size:11px;color:var(--t3);margin-bottom:16px;font-style:italic}
+
+/* ── Filters ── */
+.filter-row{display:flex;align-items:center;gap:6px;padding:0 24px 16px;flex-wrap:wrap}
+.ftab{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--l);color:var(--t2);background:var(--g);transition:all .15s;cursor:pointer}
+.ftab:hover{color:var(--t1);border-color:var(--l2)}
+.ftab.active{background:var(--signal);color:#fff;border-color:var(--signal)}
+.ftab.comp-tab.active{background:var(--grow);border-color:var(--grow)}
+.fdiv{width:1px;height:18px;background:var(--l);flex-shrink:0}
+.sort-sel{background:var(--g);border:1px solid var(--l);color:var(--t2);border-radius:20px;padding:4px 11px;font-size:11px;margin-left:auto;cursor:pointer}
+
+/* ── Best Opportunities ── */
+.opp-section{padding:0 24px 20px}
+.opp-section-header{margin-bottom:10px}
+.opp-section-title{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.opp-section-title::after{content:'';flex:1;height:1px;background:var(--l)}
+.opp-section-desc{font-size:10px;color:var(--t3);font-style:italic}
+.opp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.opp-card{background:var(--ink2);border:1px solid var(--l);border-radius:14px;padding:14px;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.opp-card:hover{border-color:var(--l2);box-shadow:0 6px 30px rgba(0,0,0,.3)}
+.opp-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:6px}
+.opp-concept{font-family:var(--fd);font-size:13px;font-weight:700;line-height:1.3;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.opp-level-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;white-space:nowrap}
+.opp-scores{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.opp-score-main{font-family:var(--fm);font-size:22px;font-weight:800;line-height:1}
+.opp-score-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+.opp-score-divider{width:1px;height:28px;background:var(--l);flex-shrink:0}
+.opp-sub-scores{display:flex;flex-direction:column;gap:2px}
+.opp-sub{font-size:10px;color:var(--t2)}
+.opp-sub span{font-family:var(--fm);font-weight:700;color:var(--t1)}
+.opp-comp-row{display:flex;align-items:center;justify-content:space-between;margin-top:6px;padding-top:6px;border-top:1px solid var(--l)}
+.opp-conf{font-size:9px;color:var(--t3)}
+
+/* ── Trend cards ── */
+.feed{display:flex;flex-direction:column;gap:12px;padding:0 24px 60px}
+.pcard{background:var(--ink2);border:1px solid var(--l);border-radius:16px;overflow:hidden;transition:border-color .2s,box-shadow .2s;animation:fade-up .3s ease both}
+.pcard:hover{border-color:var(--l2);box-shadow:0 8px 40px rgba(0,0,0,.4)}
+.pcard-inner{display:grid;grid-template-columns:220px 1fr;min-height:200px}
+.pmedia{position:relative;background:var(--ink3);overflow:hidden;flex-shrink:0}
+.pmedia-thumb{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s ease;min-height:200px}
+.pcard:hover .pmedia-thumb{transform:scale(1.04)}
+.pmedia-overlay{position:absolute;inset:0;background:linear-gradient(to right,transparent 40%,rgba(13,13,31,.97) 100%)}
+.plat-badge{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;font-size:10px;font-weight:700;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15)}
+.plat-badge.tiktok{background:rgba(105,201,208,.15);color:#69C9D0}
+.plat-badge.instagram{background:rgba(236,72,153,.15);color:#EC4899}
+.plat-badge.youtube{background:rgba(239,68,68,.15);color:#EF4444}
+.age-badge{position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);border-radius:6px;padding:3px 8px;font-size:10px;font-family:var(--fm);color:var(--t2)}
+.pdata{padding:14px 16px;display:flex;flex-direction:column;gap:0}
+
+/* Creator row */
+.creator-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.creator-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--signal),var(--nova));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;color:#fff}
+.creator-name{font-size:12px;font-weight:700}
+.creator-handle{font-size:10px;color:var(--signal2)}
+.upload-time{margin-left:auto;font-size:10px;color:var(--t3);flex-shrink:0;font-family:var(--fm)}
+
+/* Caption */
+.pcaption{font-size:12px;color:var(--t2);line-height:1.45;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* ── Scores row — TREND vs OPPORTUNITY clearly separated ── */
+.scores-row{display:flex;align-items:stretch;gap:1px;background:var(--l);border-radius:10px;overflow:hidden;margin-bottom:8px}
+.score-block{flex:1;background:var(--ink3);padding:8px 10px;text-align:center}
+.score-block-label{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;display:block}
+.score-block-value{font-family:var(--fm);font-size:16px;font-weight:800;display:block;line-height:1}
+.score-block-sub{font-size:9px;color:var(--t3);margin-top:2px;display:block}
+.score-divider{width:1px;background:var(--l2);flex-shrink:0}
+
+/* ── Competition row ── */
+.comp-row-card{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;background:var(--g);margin-bottom:8px}
+.comp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.comp-label-text{font-size:11px;color:var(--t2);flex:1;font-weight:600}
+.comp-detail{font-size:10px;color:var(--t3)}
+
+/* ── Why interesting row ── */
+.why-row{padding:7px 10px;border-radius:8px;background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.1);margin-bottom:8px}
+.why-label{font-size:9px;font-weight:700;letter-spacing:.06em;color:var(--signal2);text-transform:uppercase;margin-bottom:3px}
+.why-text{font-size:11px;color:var(--t2);line-height:1.4}
+
+/* ── Evidence row ── */
+.evidence-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.ev-pill{display:flex;align-items:center;gap:4px;background:var(--g);border-radius:6px;padding:3px 8px;font-size:10px;color:var(--t3)}
+.ev-pill strong{color:var(--t2);font-weight:600}
+
+/* ── Card footer ── */
+.pcard-footer{display:flex;align-items:center;gap:8px;padding:8px 16px;border-top:1px solid var(--l);background:rgba(0,0,0,.2);flex-wrap:wrap}
+.conf-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:9px;font-weight:700;letter-spacing:.04em}
+.conf-chip.HIGH{background:rgba(16,185,129,.12);color:var(--grow)}
+.conf-chip.MEDIUM{background:rgba(249,115,22,.12);color:var(--fire)}
+.conf-chip.LOW{background:rgba(239,68,68,.08);color:var(--danger)}
+.conf-chip.NONE{background:var(--g);color:var(--t3)}
+.spacer{flex:1}
+.action-btn{display:flex;align-items:center;gap:5px;padding:4px 11px;border-radius:8px;font-size:11px;font-weight:600;border:1px solid var(--l);background:var(--g);color:var(--t2);cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap}
+.action-btn:hover{background:var(--g2);color:var(--t1);border-color:var(--l2)}
+.action-btn.primary{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.3);color:var(--signal2)}
+
+/* ── Detail panel ── */
+#detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:200;overflow-y:auto;padding:20px;align-items:flex-start;justify-content:center}
+#detail-overlay.open{display:flex}
+.detail-panel{background:var(--ink2);border:1px solid var(--l2);border-radius:20px;width:100%;max-width:840px;overflow:hidden;animation:fade-up .25s ease both;position:relative}
+.detail-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:8px;background:var(--g2);border:1px solid var(--l);color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .15s;z-index:10}
+.detail-close:hover{background:var(--g3);color:var(--t1)}
+.detail-hero{display:grid;grid-template-columns:260px 1fr;min-height:180px;position:relative}
+.detail-thumb{width:100%;height:100%;object-fit:cover;min-height:180px;display:block}
+.detail-hero-data{padding:18px;display:flex;flex-direction:column;gap:8px}
+.detail-body{padding:18px;display:flex;flex-direction:column;gap:14px}
+.panel{background:var(--ink3);border:1px solid var(--l);border-radius:12px;padding:14px}
+.panel-title{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--t3);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.panel-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.panel-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.metric-box{background:var(--g);border-radius:8px;padding:9px 10px}
+.metric-v{font-family:var(--fm);font-size:15px;font-weight:700;display:block;margin-bottom:2px}
+.metric-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+.reason-box{background:var(--g);border-radius:8px;padding:9px 11px;font-size:11px;color:var(--t2);line-height:1.6;margin-top:8px}
+.detail-comp-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--l)}
+.detail-comp-row:last-child{border-bottom:none}
+.detail-comp-source{font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px}
+.detail-comp-val{font-size:11px;font-weight:700;font-family:var(--fm)}
+.cv-unknown{color:var(--t3);font-style:italic;font-family:var(--fb);font-weight:400}
+.cv-capped{color:var(--warn)}
+.cv-none{color:var(--grow)}
+.cv-low{color:var(--grow)}
+.cv-medium{color:var(--warn)}
+.cv-high{color:var(--danger)}
+.token-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.token-item{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--g);border-radius:8px;font-size:11px}
+.token-name{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.token-sym{color:var(--signal2);font-family:var(--fm);font-size:10px;flex-shrink:0}
+.token-chain{color:var(--t3);font-size:10px;flex-shrink:0}
+.token-liq{font-family:var(--fm);font-size:10px;color:var(--t2);flex-shrink:0}
+.match-badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;flex-shrink:0}
+.match-badge.exact{background:rgba(239,68,68,.15);color:var(--danger)}
+.match-badge.strong{background:rgba(249,115,22,.12);color:var(--fire)}
+.cp-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--l)}
+.cp-row:last-child{border-bottom:none}
+.timestamp-exact{font-size:10px;color:var(--t3);font-family:var(--fm);margin-top:4px}
+
+/* ── Skeleton & states ── */
+.skel{background:var(--ink2);border:1px solid var(--l);border-radius:16px;height:210px;position:relative;overflow:hidden}
+.skel::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent);animation:shimmer 1.5s infinite}
+.err-state{text-align:center;padding:60px 24px;color:var(--t2)}
+.err-state h3{font-family:var(--fd);font-size:18px;color:var(--t1);margin-bottom:8px}
+.empty-state{text-align:center;padding:40px 0;color:var(--t2);font-size:13px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink3);border:1px solid var(--l2);border-radius:10px;padding:9px 16px;font-size:12px;color:var(--t1);z-index:9999;display:flex;align-items:center;gap:7px;animation:fade-up .25s ease both;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+@keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+@media(max-width:768px){
+  #app{grid-template-columns:1fr}
+  #sidebar{display:none}
+  .pcard-inner{grid-template-columns:1fr}
+  .pmedia{height:160px}
+  .pmedia-thumb{min-height:160px}
+  .pmedia-overlay{background:linear-gradient(to bottom,transparent 40%,rgba(13,13,31,.97) 100%)}
+  .detail-hero{grid-template-columns:1fr}
+  .panel-grid-3{grid-template-columns:repeat(2,1fr)}
+  .opp-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<nav id="topnav">
+  <div class="logo" onclick="showDiscover()"><div class="logo-mark">⚡</div>Pulse</div>
+  <div class="live-chip"><span class="live-dot"></span><span id="live-count">Connecting…</span></div>
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input id="searchInput" placeholder="Search creators, concepts, hashtags…" oninput="applyFilters()"/>
+  </div>
+  <div class="scraper-bar">
+    <span id="pill-tiktok" class="spill loading">🎵 TikTok</span>
+    <span id="pill-instagram" class="spill loading">📸 IG</span>
+    <span id="pill-youtube" class="spill loading">▶ YT</span>
+  </div>
+  <div class="nav-actions">
+    <button class="nav-btn" title="Refresh" onclick="loadData()">↻</button>
+  </div>
+</nav>
+<aside id="sidebar">
+  <div class="nav-section">Discover</div>
+  <div class="nav-item active" id="nav-emerging" onclick="setNav(this,'emerging')">⚡ Emerging Now <span class="nav-hot"></span></div>
+  <div class="nav-item" id="nav-opportunity" onclick="setNav(this,'opportunity')">🔥 Best Opportunities <span class="nav-badge">NEW</span></div>
+  <div class="nav-section">Platform</div>
+  <div class="nav-item" onclick="setPlatform('tiktok',this)">🎵 TikTok</div>
+  <div class="nav-item" onclick="setPlatform('instagram',this)">📸 Instagram</div>
+  <div class="nav-item" onclick="setPlatform('youtube',this)">▶ YouTube</div>
+  <div class="nav-section">Age Bucket</div>
+  <div class="nav-item" onclick="setAge('HOT',this)">🔴 HOT — &lt;24h</div>
+  <div class="nav-item" onclick="setAge('EARLY',this)">🟡 EARLY — &lt;72h</div>
+  <div class="nav-item" onclick="setAge('RISING',this)">🟢 RISING — &lt;7d</div>
+  <div class="nav-item" onclick="setAge('WATCH',this)">⚪ WATCH</div>
+  <div class="nav-section">Opportunity</div>
+  <div class="nav-item" onclick="setOpp('EXCEPTIONAL',this)">🔥 Exceptional</div>
+  <div class="nav-item" onclick="setOpp('STRONG',this)">🟢 Strong</div>
+  <div class="nav-item" onclick="setOpp('INTERESTING',this)">🟡 Interesting</div>
+  <div class="nav-item" onclick="setOpp('CROWDED',this)">🟠 Crowded</div>
+  <div class="nav-section">Competition</div>
+  <div class="nav-item" onclick="setComp('NONE',this)">✅ No Competition</div>
+  <div class="nav-item" onclick="setComp('LOW',this)">🟢 Low</div>
+  <div class="nav-item" onclick="setComp('HIGH',this)">🔴 High</div>
+  <div class="nav-item" onclick="setComp('UNKNOWN',this)">❓ Unknown</div>
+  <div class="nav-section">Quick Filter</div>
+  <div class="nav-item" onclick="setQuick('low_competition',this)">✨ Emerging + Low Competition</div>
+  <div class="nav-section">Category</div>
+  <div class="cat-list" id="catList"></div>
+</aside>
+<div id="main">
+  <div id="view-discover" class="view active">
+    <div class="page-header">
+      <h1 class="page-title">Catch it <em>before it peaks</em></h1>
+      <p class="page-sub" id="page-sub">Loading…</p>
+      <p class="page-tagline">Emerging concepts, cross-platform signals, and token opportunity — before the market gets crowded.</p>
+    </div>
+    <div class="filter-row">
+      <button class="ftab active" onclick="setTab(this,'all')">All</button>
+      <button class="ftab" onclick="setTab(this,'tiktok')">🎵 TikTok</button>
+      <button class="ftab" onclick="setTab(this,'instagram')">📸 Instagram</button>
+      <button class="ftab" onclick="setTab(this,'youtube')">▶ YouTube</button>
+      <button class="ftab comp-tab" onclick="setTab(this,'low_comp')">✨ Low Competition</button>
+      <div class="fdiv"></div>
+      <select class="sort-sel" onchange="activeSort=this.value;applyFilters()">
+        <option value="opportunity_score">Opportunity Score</option>
+        <option value="trend_score">Trend Score</option>
+        <option value="meme_potential">Meme Potential</option>
+        <option value="brandability">Brandability</option>
+        <option value="cross_platform_score">Cross-Platform</option>
+        <option value="newest">Newest First</option>
+      </select>
+    </div>
+    <div class="opp-section" id="oppSection" style="display:none">
+      <div class="opp-section-header">
+        <div class="opp-section-title">🔥 Best Opportunities</div>
+        <div class="opp-section-desc">Highest opportunity signals based on current trend, meme potential, brandability, competition and cross-platform evidence. This is an analytical signal, not a prediction.</div>
+      </div>
+      <div class="opp-grid" id="oppGrid"></div>
+    </div>
+    <div class="feed" id="feed"></div>
+  </div>
+</div>
+</div>
+
+<!-- Detail overlay -->
+<div id="detail-overlay" onclick="e=>e.target===document.getElementById('detail-overlay')&&closeDetail()">
+  <div class="detail-panel" id="detail-panel">
+    <button class="detail-close" onclick="closeDetail()">✕</button>
+    <div id="detail-content"><div style="padding:40px;text-align:center;color:var(--t2)">Loading…</div></div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const SB_URL  = 'https://abpedxaniaqkxvlyypnt.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFicGVkeGFuaWFxa3h2bHl5cG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNTM3ODUsImV4cCI6MjEwMTYyOTc4NX0.wcpW2EzTI4gGbOes5i0UTypyDpddFeV9CuZ5QSMqVZU';
+
+async function sbFetch(path) {
+  const r = await fetch(SB_URL + path, {
+    headers:{'apikey':SB_ANON,'Authorization':'Bearer '+SB_ANON}
+  });
+  if (!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let ALL=[], activeSource='all', activeSort='opportunity_score';
+let activeCat='All', activeAge='', activeOppLevel='', activeCompLevel='', activeQuick='';
+let currentView='emerging';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = n => n>=1e6?(n/1e6).toFixed(1)+'M':n>=1000?(n/1000).toFixed(1)+'K':String(n||0);
+
+// TIMESTAMP: always from published_at, never from title text
+function since(iso) {
+  if (!iso) return '—';
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 3600)  return Math.round(s/60)+'m ago';
+  if (s < 86400) return Math.round(s/3600)+'h ago';
+  return Math.round(s/86400)+'d ago';
+}
+function exactTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
+}
+
+const platIcon  = s => ({tiktok:'🎵',instagram:'📸',youtube:'▶'}[s]||'🌐');
+const platLabel = s => ({tiktok:'TikTok',instagram:'Instagram',youtube:'YouTube'}[s]||s);
+const catEmoji  = c => ({AI:'🤖',Technology:'⚡',Finance:'💰',Gaming:'🎮',Entertainment:'🎬',Animals:'🐾',Memes:'😂',InternetCulture:'🌐',Science:'🔬',Sports:'🏆'}[c]||'📌');
+const toast = msg => {const el=document.createElement('div');el.className='toast';el.textContent='✓ '+msg;document.body.appendChild(el);setTimeout(()=>el.remove(),2200);};
+
+// A trend is "scored" only if opportunity_level is not null (score=0 + level=null = default, not scored)
+const isScored = t => t.opportunity_level !== null && t.opportunity_level !== undefined;
+
+function oppColor(l) {
+  return {EXCEPTIONAL:'var(--fire)',STRONG:'var(--grow)',INTERESTING:'var(--warn)',CROWDED:'var(--fire)',LOW:'var(--t3)'}[l]||'var(--t3)';
+}
+function oppEmoji(l) {
+  return {EXCEPTIONAL:'🔥',STRONG:'🟢',INTERESTING:'🟡',CROWDED:'🟠',LOW:'🔴'}[l]||'❓';
+}
+function trendColor(s) {
+  return s>=80?'var(--grow)':s>=65?'var(--warn)':s>=50?'var(--fire)':'var(--t3)';
+}
+
+// Competition display — never collapse NULL to zero
+function compDisplay(t) {
+  const level = t.competition_level;
+  const checked = !!t.competition_checked_at;
+  const capped = t.dex_count_is_capped;
+
+  if (!checked) return {dot:'var(--t3)', label:'Not checked', detail:'Competition not yet verified', cls:'cv-unknown'};
+  if (capped)   return {dot:'var(--warn)', label:'30+ results', detail:'True total unknown (API cap)', cls:'cv-capped'};
+  if (level === 'NONE') return {dot:'var(--grow)', label:'No competition', detail:'No meaningful tokens found', cls:'cv-none'};
+  if (level === 'LOW')  return {dot:'var(--grow)', label:'Low', detail:`${t.meaningful_token_count||0} meaningful token${(t.meaningful_token_count||0)!==1?'s':''}`, cls:'cv-low'};
+  if (level === 'MEDIUM') return {dot:'var(--warn)', label:'Medium', detail:`${t.meaningful_token_count||0} competitors`, cls:'cv-medium'};
+  if (level === 'HIGH' || level === 'VERY_HIGH') return {dot:'var(--danger)', label:level==='VERY_HIGH'?'Very High':'High', detail:`${t.meaningful_token_count||0} meaningful tokens`, cls:'cv-high'};
+  if (level === 'UNKNOWN') return {dot:'var(--warn)', label:'Unknown', detail:'30+ results — true total unknown', cls:'cv-capped'};
+  return {dot:'var(--t3)', label:'Not checked', detail:'Not yet verified', cls:'cv-unknown'};
+}
+
+function catFallback(cat) {
+  return ({AI:'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=500&q=75',Technology:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=500&q=75',Gaming:'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=500&q=75',Entertainment:'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&q=75',Animals:'https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=500&q=75',Memes:'https://images.unsplash.com/photo-1531747118685-ca8fa6e08806?w=500&q=75'}[cat]||'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=500&q=75');
+}
+
+function setStatus(src,st) {
+  const el=document.getElementById('pill-'+src);
+  if (!el) return;
+  el.className='spill '+st;
+  el.textContent={ok:'✓ ',loading:'⟳ ',err:'✕ '}[st]+platLabel(src);
+}
+
+// ── Load data ─────────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('feed').innerHTML=Array(5).fill('<div class="skel"></div>').join('');
+  ['tiktok','instagram','youtube'].forEach(s=>setStatus(s,'loading'));
+  try {
+    const data = await sbFetch(
+      '/rest/v1/trends?select=id,source,title,caption,creator_username,creator_name,thumbnail_url,url,' +
+      'category,age_bucket,trend_score,views,likes,comments,published_at,is_emerging,' +
+      'opportunity_score,opportunity_level,opportunity_reason,opportunity_confidence,opportunity_confidence_level,opportunity_signals_missing,' +
+      'meme_potential,meme_reason,brandability,brandability_reason,' +
+      'competition_score,competition_level,competition_checked_at,dex_count,dex_count_is_capped,meaningful_token_count,' +
+      'cross_platform_score,cluster_id,ai_scoring_status' +
+      '&is_emerging=eq.true&order=trend_score.desc&limit=100'
+    );
+    ALL = data || [];
+    const sources = [...new Set(ALL.map(t=>t.source))];
+    ['tiktok','instagram','youtube'].forEach(s=>setStatus(s,sources.includes(s)?'ok':'err'));
+    document.getElementById('live-count').textContent=`Live · ${ALL.length} emerging concepts`;
+    document.getElementById('page-sub').textContent=`${ALL.length} emerging trends · Updated ${new Date().toLocaleTimeString()}`;
+    renderCats();
+    renderOppGrid();
+    applyFilters();
+  } catch(e) {
+    ['tiktok','instagram','youtube'].forEach(s=>setStatus(s,'err'));
+    document.getElementById('feed').innerHTML=`<div class="err-state"><h3>⚠ Could not load trends</h3><p>${e.message}</p></div>`;
+  }
+}
+
+// ── Sorting ───────────────────────────────────────────────────────────────────
+// NULL-safe: nulls always go to bottom
+function nullSafe(a, b, key) {
+  const av = a[key], bv = b[key];
+  const aScored = isScored(a), bScored = isScored(b);
+  // Unscored trends (opportunity_level=null) go to bottom when sorting by opp
+  if (key === 'opportunity_score') {
+    if (!aScored && !bScored) return 0;
+    if (!aScored) return 1;
+    if (!bScored) return -1;
+  }
+  if (av === null && bv === null) return 0;
+  if (av === null) return 1;
+  if (bv === null) return -1;
+  return Number(bv) - Number(av);
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function applyFilters() {
+  let f = [...ALL];
+
+  if (activeSource === 'low_comp') {
+    f = f.filter(t => t.competition_level === 'NONE' || t.competition_level === 'LOW');
+  } else if (activeSource !== 'all') {
+    f = f.filter(t => t.source === activeSource);
+  }
+  if (activeCat !== 'All')    f = f.filter(t => t.category === activeCat);
+  if (activeAge)              f = f.filter(t => t.age_bucket === activeAge);
+  if (activeOppLevel)         f = f.filter(t => t.opportunity_level === activeOppLevel);
+  if (activeCompLevel)        f = f.filter(t => t.competition_level === activeCompLevel);
+  if (activeQuick === 'low_competition') f = f.filter(t => t.competition_level === 'NONE' || t.competition_level === 'LOW');
+
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (q) f = f.filter(t => (t.title||'').toLowerCase().includes(q) || (t.creator_username||'').toLowerCase().includes(q) || (t.category||'').toLowerCase().includes(q));
+
+  if (activeSort === 'opportunity_score') {
+    f.sort((a,b) => {
+      // Multi-key sort: opp_score DESC, then confidence DESC, then cross_platform DESC, then trend_score DESC
+      const oppDiff = nullSafe(a,b,'opportunity_score');
+      if (oppDiff !== 0) return oppDiff;
+      const confDiff = nullSafe(a,b,'opportunity_confidence');
+      if (confDiff !== 0) return confDiff;
+      return nullSafe(a,b,'trend_score');
+    });
+  }
+  else if (activeSort === 'trend_score')        f.sort((a,b)=>nullSafe(a,b,'trend_score'));
+  else if (activeSort === 'meme_potential')      f.sort((a,b)=>nullSafe(a,b,'meme_potential'));
+  else if (activeSort === 'brandability')        f.sort((a,b)=>nullSafe(a,b,'brandability'));
+  else if (activeSort === 'cross_platform_score') f.sort((a,b)=>nullSafe(a,b,'cross_platform_score'));
+  else if (activeSort === 'newest')             f.sort((a,b)=>new Date(b.published_at)-new Date(a.published_at));
+
+  renderFeed(f);
+}
+
+function setTab(el,src) { document.querySelectorAll('.ftab').forEach(b=>b.classList.remove('active')); el.classList.add('active'); activeSource=src; applyFilters(); }
+function setPlatform(src,el) { clearNav(); el.classList.add('active'); activeSource=src; activeAge=''; activeOppLevel=''; activeCompLevel=''; activeQuick=''; applyFilters(); }
+function setAge(age,el) { clearNav(); el.classList.add('active'); activeAge=age; activeSource='all'; applyFilters(); }
+function setOpp(level,el) { clearNav(); el.classList.add('active'); activeOppLevel=level; activeSource='all'; applyFilters(); }
+function setComp(level,el) { clearNav(); el.classList.add('active'); activeCompLevel=level; activeSource='all'; applyFilters(); }
+function setQuick(q,el) { clearNav(); el.classList.add('active'); activeQuick=q; activeSource='all'; applyFilters(); }
+function clearNav() { document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active')); }
+function setNav(el,view) {
+  clearNav(); el.classList.add('active'); currentView=view;
+  document.getElementById('oppSection').style.display = view==='opportunity'?'block':'none';
+  document.getElementById('feed').style.display = view==='opportunity'?'none':'';
+  if (view==='opportunity') renderOppGrid(); else applyFilters();
+}
+function showDiscover() { document.getElementById('nav-emerging').click(); document.getElementById('main').scrollTop=0; }
+
+function renderCats() {
+  const cats = ['All',...new Set(ALL.map(t=>t.category).filter(Boolean))].sort();
+  document.getElementById('catList').innerHTML = cats.map(c=>
+    `<button class="cat-btn ${c===activeCat?'active':''}" onclick="filterCat('${c}',this)">${catEmoji(c)} ${c}<span class="cat-count">${c==='All'?ALL.length:ALL.filter(t=>t.category===c).length}</span></button>`
+  ).join('');
+}
+function filterCat(n,el) { activeCat=n; document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); applyFilters(); }
+
+// ── Best Opportunities ────────────────────────────────────────────────────────
+function renderOppGrid() {
+  const top = [...ALL]
+    .filter(t => isScored(t))
+    .sort((a,b) => {
+      const d = nullSafe(a,b,'opportunity_score'); if (d!==0) return d;
+      const d2= nullSafe(a,b,'opportunity_confidence'); if (d2!==0) return d2;
+      return nullSafe(a,b,'trend_score');
+    })
+    .slice(0,9);
+
+  if (!top.length) {
+    document.getElementById('oppGrid').innerHTML='<p style="color:var(--t3);font-size:12px">No scored trends yet — run the opportunity scorer.</p>';
+    return;
+  }
+  document.getElementById('oppGrid').innerHTML = top.map(t => {
+    const oc = oppColor(t.opportunity_level);
+    const oe = oppEmoji(t.opportunity_level);
+    const comp = compDisplay(t);
+    const confLevel = t.opportunity_confidence_level||'NONE';
+    return `<div class="opp-card" onclick="openDetail('${t.id}')">
+      <div class="opp-card-top">
+        <div class="opp-concept">${(t.title||t.category||'—').replace(/[^\w\s\-#.,!?'""]/g,'').trim().slice(0,60)}</div>
+        <div class="opp-level-badge" style="background:${oc}20;color:${oc}">${oe} ${t.opportunity_level}</div>
+      </div>
+      <div class="opp-scores">
+        <div>
+          <div class="opp-score-main" style="color:${oc}">${t.opportunity_score!==null?Math.round(Number(t.opportunity_score)):'—'}</div>
+          <div class="opp-score-label">Opportunity</div>
+        </div>
+        <div class="opp-score-divider"></div>
+        <div class="opp-sub-scores">
+          <div class="opp-sub">Trend <span>${t.trend_score||'—'}</span></div>
+          <div class="opp-sub">Meme <span>${t.meme_potential!==null?t.meme_potential:'—'}</span></div>
+          <div class="opp-sub">Brand <span>${t.brandability!==null?t.brandability:'—'}</span></div>
+        </div>
+      </div>
+      <div class="opp-comp-row">
+        <span style="font-size:10px;color:${comp.dot==='var(--t3)'?'var(--t3)':comp.dot}">● ${comp.label}</span>
+        <span class="conf-chip ${confLevel}">${confLevel}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Feed ──────────────────────────────────────────────────────────────────────
+function renderFeed(posts) {
+  const feed = document.getElementById('feed');
+  if (!posts.length) { feed.innerHTML='<div class="empty-state">No trends match this filter.</div>'; return; }
+  feed.innerHTML = posts.map((t,i)=>renderCard(t,i)).join('');
+}
+
+function renderCard(t, idx) {
+  const tc = trendColor(Number(t.trend_score));
+  const scored = isScored(t);
+  const oc = scored ? oppColor(t.opportunity_level) : 'var(--t3)';
+  const oe = scored ? oppEmoji(t.opportunity_level) : '❓';
+  const comp = compDisplay(t);
+  const confLevel = t.opportunity_confidence_level||'NONE';
+  const initials = (t.creator_username||t.creator_name||'UN').replace(/[@_]/g,'').slice(0,2).toUpperCase();
+  const thumb = t.thumbnail_url||catFallback(t.category);
+
+  // Evidence from real DB fields
+  const snapshotCount = '?'; // loaded on-demand in detail
+  const platformCount = t.cluster_id ? '?' : '1';
+  const evidenceParts = [
+    `${t.competition_checked_at?(t.meaningful_token_count!==null?t.meaningful_token_count:'?')+' token(s)':'unverified tokens'}`,
+    `${t.cross_platform_score !== null ? 'CP:'+t.cross_platform_score : '1 platform'}`,
+  ];
+
+  // Why interesting — from DB only, never invented
+  const whyText = t.opportunity_reason || null;
+
+  // Scores row — TREND and OPPORTUNITY visually separated
+  const oppVal = scored ? Math.round(Number(t.opportunity_score)) : null;
+  const trendVal = t.trend_score ? Math.round(Number(t.trend_score)) : '—';
+
+  return `<div class="pcard" style="animation-delay:${Math.min(idx,12)*.05}s">
+  <div class="pcard-inner">
+    <div class="pmedia">
+      <img class="pmedia-thumb" src="${thumb}" alt="" loading="lazy" onerror="this.src='${catFallback(t.category)}'"/>
+      <div class="pmedia-overlay"></div>
+      <div class="plat-badge ${t.source||''}">${platIcon(t.source)} ${platLabel(t.source)}</div>
+      <div class="age-badge">${since(t.published_at)} · ${t.age_bucket||'—'}</div>
+    </div>
+    <div class="pdata">
+      <div class="creator-row">
+        <div class="creator-avatar">${initials}</div>
+        <div style="min-width:0;flex:1">
+          <div class="creator-name">${t.creator_name||t.creator_username||'Unknown'}</div>
+          <div class="creator-handle">@${t.creator_username||'—'}</div>
+        </div>
+        <div class="upload-time">${since(t.published_at)}</div>
+      </div>
+      <div class="pcaption">${(t.title||t.caption||'').slice(0,160)}</div>
+
+      <!-- TREND vs OPPORTUNITY clearly separated -->
+      <div class="scores-row">
+        <div class="score-block">
+          <span class="score-block-label">Trend Score</span>
+          <span class="score-block-value" style="color:${tc}">${trendVal}</span>
+          <span class="score-block-sub">${t.age_bucket||'—'}</span>
+        </div>
+        <div class="score-divider"></div>
+        <div class="score-block">
+          <span class="score-block-label">Meme Potential</span>
+          <span class="score-block-value" style="color:var(--nova)">${t.meme_potential!==null?t.meme_potential:'—'}</span>
+          <span class="score-block-sub">${t.brandability!==null?'Brand '+t.brandability:'—'}</span>
+        </div>
+        <div class="score-divider"></div>
+        <div class="score-block">
+          <span class="score-block-label">Opportunity</span>
+          <span class="score-block-value" style="color:${oc}">${oppVal!==null?oppVal:'—'}</span>
+          <span class="score-block-sub" style="color:${oc}">${scored?oe+' '+t.opportunity_level:'Not scored'}</span>
+        </div>
+      </div>
+
+      <!-- Competition — distinct states -->
+      <div class="comp-row-card">
+        <div class="comp-dot" style="background:${comp.dot}"></div>
+        <div class="comp-label-text">${comp.label}</div>
+        <div class="comp-detail">${comp.detail}</div>
+      </div>
+
+      <!-- Why interesting — DB only -->
+      <div class="why-row">
+        <div class="why-label">Why this is interesting</div>
+        <div class="why-text">${whyText||'Waiting for additional signals'}</div>
+      </div>
+
+      <!-- Evidence -->
+      <div class="evidence-row">
+        <div class="ev-pill">📍 <strong>${platLabel(t.source)}</strong></div>
+        <div class="ev-pill">👁 <strong>${fmt(t.views)}</strong> views</div>
+        <div class="ev-pill">❤ <strong>${fmt(t.likes)}</strong></div>
+        ${t.cross_platform_score&&t.cross_platform_score>25?`<div class="ev-pill">🌐 Cross-platform <strong>${t.cross_platform_score}</strong></div>`:''}
+        ${t.competition_checked_at?`<div class="ev-pill">🪙 <strong>${t.meaningful_token_count||0}</strong> token(s)</div>`:'<div class="ev-pill" style="color:var(--t3)">🪙 Tokens unverified</div>'}
+      </div>
+    </div>
+  </div>
+  <div class="pcard-footer">
+    <div class="conf-chip ${confLevel}" title="Confidence in opportunity score">${confLevel} confidence</div>
+    <div class="spacer"></div>
+    <button class="action-btn primary" onclick="openDetail('${t.id}')">📊 Token Opportunity</button>
+    ${t.url?`<a href="${t.url}" target="_blank" rel="noopener" class="action-btn">↗ View</a>`:''}
+  </div>
+</div>`;
+}
+
+// ── Detail Panel ──────────────────────────────────────────────────────────────
+async function openDetail(id) {
+  const t = ALL.find(x=>x.id===id);
+  if (!t) return;
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-content').innerHTML='<div style="padding:40px;text-align:center;color:var(--t2)">⟳ Loading…</div>';
+
+  const [checks, snaps, clusterArr] = await Promise.all([
+    sbFetch(`/rest/v1/competition_checks?trend_id=eq.${id}&order=checked_at.desc&limit=5`).catch(()=>[]),
+    sbFetch(`/rest/v1/trend_snapshots?trend_id=eq.${id}&order=captured_at.desc&limit=10`).catch(()=>[]),
+    t.cluster_id ? sbFetch(`/rest/v1/trend_clusters?id=eq.${t.cluster_id}&select=canonical_concept,unique_platforms,unique_creators,platform_count,creator_count,cross_platform_score`).catch(()=>[]) : Promise.resolve([]),
+  ]);
+  const cluster = clusterArr[0]||null;
+  document.getElementById('detail-content').innerHTML = buildDetail(t, checks, snaps, cluster);
+}
+function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
+document.getElementById('detail-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('detail-overlay'))closeDetail();});
+
+function buildDetail(t, checks, snaps, cluster) {
+  const scored = isScored(t);
+  const oc = scored ? oppColor(t.opportunity_level) : 'var(--t3)';
+  const comp = compDisplay(t);
+  const thumb = t.thumbnail_url||catFallback(t.category);
+  const confLevel = t.opportunity_confidence_level||'NONE';
+
+  // Tokens from competition_checks.tokens_found — EXACT and STRONG only
+  const allTokens = checks.flatMap(c=>{
+    try { return Array.isArray(c.tokens_found)?c.tokens_found:[];} catch{return [];}
+  }).filter(tk=>{
+    if (!tk) return false;
+    const mt=(tk.match_type||'').toUpperCase();
+    return mt==='EXACT_MATCH'||mt==='STRONG_CONCEPT_MATCH'||mt==='EXACT'||mt==='STRONG';
+  });
+  const seenTok = new Set();
+  const uniqueTokens = allTokens.filter(tk=>{
+    const key=`${tk.name||''}|||${tk.symbol||''}`;
+    if (seenTok.has(key)) return false;
+    seenTok.add(key); return true;
+  }).slice(0,8);
+
+  // Snapshots
+  let snapContent;
+  if (!snaps||snaps.length<2) {
+    snapContent=`<div style="text-align:center;padding:16px;font-size:11px;color:var(--t3);font-style:italic">Collecting more data — check back after more collection cycles.</div>`;
+  } else {
+    const latest=snaps[0], oldest=snaps[snaps.length-1];
+    const viewGrowth=oldest.views>0?Math.round((latest.views-oldest.views)/oldest.views*100):null;
+    snapContent=`<div class="panel-grid-3">
+      <div class="metric-box"><span class="metric-v">${fmt(latest.views||0)}</span><span class="metric-l">Latest Views</span></div>
+      <div class="metric-box"><span class="metric-v">${fmt(latest.likes||0)}</span><span class="metric-l">Likes</span></div>
+      <div class="metric-box"><span class="metric-v" style="color:${viewGrowth>0?'var(--grow)':'var(--t3)'}">${viewGrowth!==null?(viewGrowth>0?'+':'')+viewGrowth+'%':'—'}</span><span class="metric-l">Growth</span></div>
+    </div>
+    <div style="font-size:10px;color:var(--t3);margin-top:6px">${snaps.length} snapshots · ${since(oldest.captured_at)} → ${since(latest.captured_at)}</div>`;
+  }
+
+  // Cross-platform
+  const allPlats=['tiktok','instagram','youtube'];
+  const detected=cluster?.unique_platforms||[t.source];
+  const cpContent=allPlats.map(p=>`
+    <div class="cp-row">
+      <span style="font-size:12px;font-weight:600">${platIcon(p)} ${platLabel(p)}</span>
+      <span style="font-size:14px">${detected.includes(p)?'✅':'—'}</span>
+    </div>`).join('')+
+    `<div style="margin-top:10px;display:flex;gap:16px;font-size:11px">
+      <div><strong style="font-family:var(--fm)">${cluster?.platform_count||1}</strong> <span style="color:var(--t3)">platform${(cluster?.platform_count||1)!==1?'s':''}</span></div>
+      <div><strong style="font-family:var(--fm)">${cluster?.creator_count||1}</strong> <span style="color:var(--t3)">creator${(cluster?.creator_count||1)!==1?'s':''}</span></div>
+      ${cluster?.cross_platform_score?`<div><strong style="font-family:var(--fm)">${cluster.cross_platform_score}</strong> <span style="color:var(--t3)">CP score</span></div>`:''}
+    </div>`;
+
+  const missingSigs = (t.opportunity_signals_missing||[]);
+
+  return `
+  <div class="detail-hero">
+    <img class="detail-thumb" src="${thumb}" alt="" onerror="this.src='${catFallback(t.category)}'"/>
+    <div class="detail-hero-data">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="plat-badge ${t.source||''}" style="position:relative;top:auto;left:auto">${platIcon(t.source)} ${platLabel(t.source)}</span>
+        <span style="font-size:10px;color:var(--t3);font-family:var(--fm)">${since(t.published_at)}</span>
+      </div>
+      <div style="font-family:var(--fd);font-size:14px;font-weight:700;line-height:1.4">${(t.title||t.caption||'').slice(0,120)}</div>
+      <div style="font-size:11px;color:var(--signal2)">@${t.creator_username||'—'}</div>
+      <div class="timestamp-exact">${exactTime(t.published_at)}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <div style="background:${trendColor(t.trend_score)}18;border:1px solid ${trendColor(t.trend_score)};border-radius:8px;padding:5px 10px;text-align:center">
+          <div style="font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Trend</div>
+          <div style="font-family:var(--fm);font-size:17px;font-weight:800;color:${trendColor(t.trend_score)}">${t.trend_score||'—'}</div>
+        </div>
+        ${scored?`<div style="background:${oc}18;border:1px solid ${oc};border-radius:8px;padding:5px 10px;text-align:center">
+          <div style="font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em">Opportunity</div>
+          <div style="font-family:var(--fm);font-size:17px;font-weight:800;color:${oc}">${Math.round(Number(t.opportunity_score))}</div>
+        </div>`:''}
+        <div class="conf-chip ${confLevel}" style="align-self:center">${confLevel} confidence</div>
+      </div>
+    </div>
+  </div>
+  <div class="detail-body">
+
+    <!-- TOKEN OPPORTUNITY -->
+    <div class="panel">
+      <div class="panel-title">🪙 Token Opportunity</div>
+      <div class="panel-grid-3">
+        <div class="metric-box"><span class="metric-v" style="color:var(--nova)">${t.meme_potential!==null?t.meme_potential:'—'}</span><span class="metric-l">Meme Potential</span></div>
+        <div class="metric-box"><span class="metric-v" style="color:var(--volt)">${t.brandability!==null?t.brandability:'—'}</span><span class="metric-l">Brandability</span></div>
+        <div class="metric-box"><span class="metric-v" style="color:var(--signal2)">${t.cross_platform_score!==null?t.cross_platform_score:'—'}</span><span class="metric-l">Cross-Platform</span></div>
+        <div class="metric-box"><span class="metric-v ${comp.cls.replace('cv-','')==='unknown'?'':''}"><span class="${comp.cls}">${comp.label}</span></span><span class="metric-l">Competition</span></div>
+        <div class="metric-box"><span class="metric-v" style="color:${oc}">${scored?Math.round(Number(t.opportunity_score)):'—'}</span><span class="metric-l">Opportunity Score</span></div>
+        <div class="metric-box"><span class="metric-v"><span class="conf-chip ${confLevel}">${confLevel}</span></span><span class="metric-l">Confidence</span></div>
+      </div>
+      ${scored?`<div style="margin-top:10px">
+        <div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${oppEmoji(t.opportunity_level)} ${t.opportunity_level} — Analytical signal, not a prediction</div>
+        <div class="reason-box">${t.opportunity_reason||'—'}</div>
+      </div>`:'<div class="reason-box" style="margin-top:8px;color:var(--t3)">Opportunity score not yet calculated for this trend.</div>'}
+      ${missingSigs.length?`<div style="font-size:10px;color:var(--warn);margin-top:6px">⚠ Missing signals: ${missingSigs.join(', ')}</div>`:''}
+      ${t.meme_reason?`<div style="margin-top:10px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Meme analysis</div><div class="reason-box">${t.meme_reason}</div></div>`:''}
+      ${t.brandability_reason?`<div style="margin-top:8px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px">Brand analysis</div><div class="reason-box">${t.brandability_reason}</div></div>`:''}
+    </div>
+
+    <!-- COMPETITION -->
+    <div class="panel">
+      <div class="panel-title">⚔️ Competition</div>
+      <div class="detail-comp-row">
+        <span class="detail-comp-source">📊 DexScreener</span>
+        <span class="detail-comp-val ${t.competition_checked_at?(t.dex_count_is_capped?'cv-capped':t.competition_level==='NONE'?'cv-none':''):'cv-unknown'}">${
+          !t.competition_checked_at ? 'Not checked — not verified' :
+          t.dex_count_is_capped ? '30+ results — true total unknown' :
+          t.competition_level==='NONE' ? 'No meaningful tokens' :
+          `${t.dex_count||0} pairs · ${t.meaningful_token_count||0} meaningful`
+        }</span>
+      </div>
+      <div class="detail-comp-row"><span class="detail-comp-source">🚀 Pump.fun</span><span class="detail-comp-val cv-unknown">Not verified</span></div>
+      <div class="detail-comp-row"><span class="detail-comp-source">📈 GMGN</span><span class="detail-comp-val cv-unknown">Not verified</span></div>
+      <div class="detail-comp-row"><span class="detail-comp-source">⚡ Raydium</span><span class="detail-comp-val cv-unknown">Not verified</span></div>
+      <div class="detail-comp-row"><span class="detail-comp-source">🦅 Birdeye</span><span class="detail-comp-val cv-unknown">Not verified</span></div>
+      <div style="font-size:10px;color:var(--t3);margin-top:10px">
+        Last checked: ${t.competition_checked_at?since(t.competition_checked_at):'Never'} · 
+        <span style="font-style:italic">0 = confirmed zero · "Not verified" ≠ zero</span>
+      </div>
+      ${uniqueTokens.length?`
+      <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-top:12px;margin-bottom:6px">Matched tokens (exact + strong matches only)</div>
+      <div class="token-list">${uniqueTokens.map(tk=>{
+        const mt=(tk.match_type||'').toUpperCase();
+        const cls=(mt==='EXACT_MATCH'||mt==='EXACT')?'exact':'strong';
+        return `<div class="token-item">
+          <div class="token-name">${tk.name||'—'}</div>
+          <span class="token-sym">${tk.symbol||''}</span>
+          <span class="token-chain">${tk.chain||''}</span>
+          <span class="token-liq">${tk.liquidity?'$'+fmt(tk.liquidity):'—'}</span>
+          <span class="match-badge ${cls}">${cls}</span>
+        </div>`;
+      }).join('')}</div>`:
+      t.competition_checked_at?'<div style="font-size:11px;color:var(--t3);margin-top:10px;font-style:italic">No exact or strong token matches found.</div>':''
+      }
+    </div>
+
+    <!-- CROSS-PLATFORM -->
+    <div class="panel">
+      <div class="panel-title">🌐 Cross-Platform</div>
+      ${cpContent}
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="panel">
+      <div class="panel-title">📈 Timeline</div>
+      ${snapContent}
+    </div>
+
+  </div>`;
+}
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
