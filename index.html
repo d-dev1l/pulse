@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Pulse — Catch viral content early</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ink:#06060E;--ink2:#0D0D1F;--ink3:#13132B;
+  --g:rgba(255,255,255,0.04);--g2:rgba(255,255,255,0.07);--g3:rgba(255,255,255,0.12);
+  --l:rgba(255,255,255,0.07);--l2:rgba(255,255,255,0.13);--l3:rgba(255,255,255,0.22);
+  --signal:#6366F1;--signal2:#818CF8;--fire:#F97316;--nova:#EC4899;--volt:#22D3EE;
+  --grow:#10B981;--warn:#F59E0B;--danger:#EF4444;
+  --t1:#F1F5F9;--t2:#94A3B8;--t3:#475569;
+  --fd:'Syne',sans-serif;--fb:'Inter',sans-serif;--fm:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--ink);color:var(--t1);font-family:var(--fb);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button{cursor:pointer;border:none;background:none;font-family:var(--fb);color:var(--t1)}
+input,select{font-family:var(--fb);color:var(--t1);outline:none}
+input::placeholder{color:var(--t3)}
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--g3);border-radius:3px}
+#app{display:grid;grid-template-columns:220px 1fr;grid-template-rows:54px 1fr;height:100vh;overflow:hidden}
+#topnav{grid-column:1/-1;background:rgba(6,6,14,.97);backdrop-filter:blur(24px);border-bottom:1px solid var(--l);display:flex;align-items:center;gap:10px;padding:0 18px;z-index:100}
+.logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:16px;letter-spacing:-.5px;width:200px;cursor:pointer;flex-shrink:0}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,var(--signal),var(--volt));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.live-chip{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--grow);font-weight:600;white-space:nowrap}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--grow);box-shadow:0 0 8px var(--grow);animation:pulse-dot 1.5s infinite;flex-shrink:0}
+.search-bar{flex:1;max-width:460px;position:relative;margin:0 auto}
+.search-bar input{width:100%;background:var(--g2);border:1px solid var(--l);border-radius:9px;padding:8px 14px 8px 36px;font-size:13px;transition:border-color .2s}
+.search-bar input:focus{border-color:var(--signal)}
+.search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:14px;pointer-events:none}
+.scraper-bar{display:flex;align-items:center;gap:7px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.15);border-radius:7px;padding:4px 10px;flex-shrink:0}
+.spill{display:flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;transition:all .3s}
+.spill.ok{background:rgba(16,185,129,.12);color:#10B981}
+.spill.loading{background:rgba(99,102,241,.12);color:var(--signal2);animation:blink .9s infinite}
+.spill.err{background:rgba(239,68,68,.1);color:var(--danger)}
+.nav-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+.nav-btn{width:32px;height:32px;border-radius:8px;border:1px solid var(--l);background:var(--g);color:var(--t2);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s;cursor:pointer}
+.nav-btn:hover{background:var(--g2);color:var(--t1)}
+#sidebar{background:var(--ink2);border-right:1px solid var(--l);display:flex;flex-direction:column;overflow-y:auto;padding:14px 0}
+.nav-section{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--t3);padding:10px 18px 5px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 18px;cursor:pointer;color:var(--t2);font-size:12px;font-weight:500;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--t1);background:var(--g)}
+.nav-item.active{color:var(--t1);background:var(--g2);border-left-color:var(--signal)}
+.nav-badge{margin-left:auto;background:var(--fire);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px}
+.nav-hot{width:5px;height:5px;border-radius:50%;background:var(--fire);box-shadow:0 0 5px var(--fire);margin-left:auto;flex-shrink:0}
+.cat-list{padding:4px 10px}
+.cat-btn{display:flex;align-items:center;gap:7px;width:100%;padding:5px 8px;border-radius:7px;font-size:11px;color:var(--t2);cursor:pointer;transition:all .15s;background:transparent;text-align:left;border:none}
+.cat-btn:hover{background:var(--g);color:var(--t1)}
+.cat-btn.active{background:var(--g2);color:var(--t1)}
+.cat-count{margin-left:auto;font-size:10px;color:var(--t3);font-family:var(--fm)}
+.sidebar-footer{margin-top:auto;padding:12px 14px;border-top:1px solid var(--l)}
+#main{overflow-y:auto;background:var(--ink)}
+.view{display:none;min-height:calc(100vh - 54px)}
+.view.active{display:block}
+.page-header{padding:22px 24px 0}
+.page-title{font-family:var(--fd);font-size:22px;font-weight:800;letter-spacing:-.4px;margin-bottom:4px}
+.page-title em{font-style:normal;background:linear-gradient(135deg,var(--signal2),var(--volt));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.page-sub{font-size:12px;color:var(--t2);margin-bottom:16px}
+.filter-row{display:flex;align-items:center;gap:6px;padding:0 24px 16px;flex-wrap:wrap}
+.ftab{padding:5px 13px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--l);color:var(--t2);background:var(--g);transition:all .15s;cursor:pointer}
+.ftab:hover{color:var(--t1);border-color:var(--l2)}
+.ftab.active{background:var(--signal);color:#fff;border-color:var(--signal)}
+.ftab.fire-tab.active{background:var(--fire);border-color:var(--fire)}
+.ftab.grow-tab.active{background:var(--grow);border-color:var(--grow)}
+.fdiv{width:1px;height:18px;background:var(--l);flex-shrink:0}
+.sort-sel{background:var(--g);border:1px solid var(--l);color:var(--t2);border-radius:20px;padding:4px 11px;font-size:11px;margin-left:auto;cursor:pointer}
+.feed{display:flex;flex-direction:column;gap:12px;padding:0 24px 60px}
+
+/* ── Best Opportunities section ── */
+.opp-section{padding:0 24px 20px}
+.opp-section-title{font-family:var(--fd);font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.opp-section-title::after{content:'';flex:1;height:1px;background:var(--l)}
+.opp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.opp-card{background:var(--ink2);border:1px solid var(--l);border-radius:14px;padding:14px;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.opp-card:hover{border-color:var(--l2);box-shadow:0 6px 30px rgba(0,0,0,.3)}
+.opp-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.opp-concept{font-family:var(--fd);font-size:14px;font-weight:700;text-transform:capitalize;line-height:1.2}
+.opp-level-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;flex-shrink:0;margin-left:8px;white-space:nowrap}
+.opp-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.opp-metric{text-align:center;background:var(--g);border-radius:8px;padding:6px 4px}
+.opp-metric-v{font-family:var(--fm);font-size:12px;font-weight:700;display:block}
+.opp-metric-l{font-size:9px;color:var(--t3);display:block;text-transform:uppercase;letter-spacing:.05em;margin-top:1px}
+.opp-footer{display:flex;align-items:center;justify-content:space-between}
+.opp-plat-icons{display:flex;gap:4px}
+.opp-plat-icon{font-size:10px;opacity:.7}
+.opp-score-big{font-family:var(--fm);font-size:20px;font-weight:800}
+.opp-conf{font-size:9px;color:var(--t3);text-align:right}
+
+/* ── Trend cards ── */
+.pcard{background:var(--ink2);border:1px solid var(--l);border-radius:16px;overflow:hidden;transition:border-color .2s,box-shadow .2s;animation:fade-up .3s ease both}
+.pcard:hover{border-color:var(--l2);box-shadow:0 8px 40px rgba(0,0,0,.4)}
+.pcard-inner{display:grid;grid-template-columns:240px 1fr;min-height:220px}
+.pmedia{position:relative;background:var(--ink3);overflow:hidden}
+.pmedia-thumb{width:100%;height:100%;object-fit:cover;display:block;transition:transform .4s ease;min-height:220px}
+.pcard:hover .pmedia-thumb{transform:scale(1.04)}
+.pmedia-overlay{position:absolute;inset:0;background:linear-gradient(to right,transparent 50%,rgba(13,13,31,.95) 100%)}
+.plat-badge{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:20px;font-size:10px;font-weight:700;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.15)}
+.plat-badge.tiktok{background:rgba(105,201,208,.15);color:#69C9D0}
+.plat-badge.instagram{background:rgba(236,72,153,.15);color:#EC4899}
+.plat-badge.youtube{background:rgba(239,68,68,.15);color:#EF4444}
+.viral-rank{position:absolute;top:10px;right:10px;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);border-radius:8px;padding:5px 8px;text-align:center;min-width:44px}
+.viral-rank-n{font-family:var(--fd);font-size:18px;font-weight:800;line-height:1;color:var(--fire)}
+.viral-rank-l{font-size:8px;color:var(--t3);margin-top:1px;text-transform:uppercase;letter-spacing:.05em}
+.play-btn{position:absolute;bottom:10px;left:10px;display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:6px 11px;font-size:11px;font-weight:600;color:var(--t1);text-decoration:none;transition:all .15s}
+.play-btn:hover{background:rgba(99,102,241,.5);border-color:var(--signal)}
+.pdata{padding:16px 18px;display:flex;flex-direction:column}
+.creator-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.creator-avatar{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--signal),var(--nova));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;overflow:hidden;color:#fff}
+.creator-avatar img{width:100%;height:100%;object-fit:cover}
+.creator-name{font-size:13px;font-weight:700;line-height:1.2}
+.creator-handle{font-size:11px;color:var(--signal2);margin-top:1px}
+.upload-time{margin-left:auto;font-size:11px;color:var(--t3);white-space:nowrap;flex-shrink:0}
+.pcaption{font-size:13px;color:var(--t1);line-height:1.5;margin-bottom:11px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pstats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--l);border-radius:10px;overflow:hidden;margin-bottom:10px}
+.pstat{background:var(--ink3);padding:8px 6px;text-align:center}
+.pstat-v{font-family:var(--fm);font-size:13px;font-weight:700;color:var(--t1);display:block}
+.pstat-v.fire{color:var(--fire)}
+.pstat-l{font-size:9px;color:var(--t3);margin-top:2px;display:block;text-transform:uppercase;letter-spacing:.05em}
+.age-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:7px 10px;border-radius:8px;background:var(--g)}
+.age-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.age-text{font-size:11px;color:var(--t2);flex:1}
+.age-label{font-size:11px;font-weight:700;white-space:nowrap}
+.early-badge{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#10B981;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;flex-shrink:0}
+
+/* ── Opportunity mini-panel on card ── */
+.opp-mini{background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(34,211,238,.05));border:1px solid rgba(99,102,241,.15);border-radius:10px;padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.opp-mini-score{font-family:var(--fd);font-size:20px;font-weight:800;flex-shrink:0}
+.opp-mini-right{flex:1;min-width:0}
+.opp-mini-level{font-size:10px;font-weight:700;letter-spacing:.05em}
+.opp-mini-reason{font-size:10px;color:var(--t3);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opp-mini-subs{display:flex;gap:8px;margin-top:5px;flex-wrap:wrap}
+.opp-mini-sub{font-size:9px;color:var(--t3)}
+.opp-mini-sub span{color:var(--t2);font-weight:600}
+
+.pcard-footer{display:flex;align-items:center;gap:8px;padding:9px 18px;border-top:1px solid var(--l);background:rgba(0,0,0,.2);flex-wrap:wrap}
+.tscore-badge{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:700;border:1px solid;flex-shrink:0}
+.spacer{flex:1}
+.action-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:600;border:1px solid var(--l);background:var(--g);color:var(--t2);cursor:pointer;transition:all .15s;text-decoration:none;white-space:nowrap}
+.action-btn:hover{background:var(--g2);color:var(--t1);border-color:var(--l2)}
+.action-btn.primary{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.3);color:var(--signal2)}
+
+/* ── Detail panel ── */
+#detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;overflow-y:auto;padding:20px}
+#detail-overlay.open{display:flex;align-items:flex-start;justify-content:center}
+.detail-panel{background:var(--ink2);border:1px solid var(--l2);border-radius:20px;width:100%;max-width:820px;overflow:hidden;animation:fade-up .25s ease both}
+.detail-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:8px;background:var(--g2);border:1px solid var(--l);color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .15s}
+.detail-close:hover{background:var(--g3);color:var(--t1)}
+.detail-hero{display:grid;grid-template-columns:280px 1fr;min-height:200px;position:relative}
+.detail-thumb{width:100%;height:100%;object-fit:cover;min-height:200px;display:block}
+.detail-hero-data{padding:20px;display:flex;flex-direction:column;gap:10px}
+.detail-title{font-family:var(--fd);font-size:15px;font-weight:700;line-height:1.4}
+.detail-body{padding:20px;display:flex;flex-direction:column;gap:16px}
+.panel{background:var(--ink3);border:1px solid var(--l);border-radius:12px;padding:14px}
+.panel-title{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--t3);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.panel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.panel-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.metric-box{background:var(--g);border-radius:8px;padding:9px 10px}
+.metric-v{font-family:var(--fm);font-size:16px;font-weight:700;display:block;margin-bottom:2px}
+.metric-l{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em}
+.reason-text{font-size:11px;color:var(--t2);line-height:1.6;margin-top:8px;padding:8px 10px;background:var(--g);border-radius:8px}
+.comp-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--l)}
+.comp-row:last-child{border-bottom:none}
+.comp-source{font-size:12px;font-weight:600;display:flex;align-items:center;gap:7px}
+.comp-val{font-family:var(--fm);font-size:12px;font-weight:700}
+.comp-val.unknown{color:var(--t3);font-style:italic;font-family:var(--fb)}
+.comp-val.capped{color:var(--warn)}
+.comp-val.zero{color:var(--grow)}
+.comp-val.low{color:var(--grow)}
+.comp-val.medium{color:var(--warn)}
+.comp-val.high{color:var(--danger)}
+.comp-val.very-high{color:var(--danger)}
+.token-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.token-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--g);border-radius:8px;font-size:11px}
+.token-name{font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.token-sym{color:var(--signal2);font-family:var(--fm);font-size:10px}
+.token-chain{color:var(--t3);font-size:10px}
+.token-mcap{font-family:var(--fm);font-size:10px;color:var(--t2)}
+.token-match{font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px}
+.token-match.exact{background:rgba(239,68,68,.15);color:var(--danger)}
+.token-match.strong{background:rgba(249,115,22,.15);color:var(--fire)}
+.token-match.weak{background:rgba(99,102,241,.1);color:var(--signal2)}
+.cp-platform-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--l)}
+.cp-platform-row:last-child{border-bottom:none}
+.cp-plat-name{font-size:12px;font-weight:600}
+.cp-check{font-size:14px}
+.snap-empty{font-size:11px;color:var(--t3);text-align:center;padding:20px;font-style:italic}
+.conf-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.conf-badge.HIGH{background:rgba(16,185,129,.15);color:var(--grow)}
+.conf-badge.MEDIUM{background:rgba(249,115,22,.12);color:var(--fire)}
+.conf-badge.LOW{background:rgba(239,68,68,.1);color:var(--danger)}
+
+/* ── Skeleton & error ── */
+.skel{background:var(--ink2);border:1px solid var(--l);border-radius:16px;height:230px;position:relative;overflow:hidden}
+.skel::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.04),transparent);animation:shimmer 1.5s infinite}
+.err-state{text-align:center;padding:60px 24px;color:var(--t2)}
+.err-state h3{font-family:var(--fd);font-size:18px;color:var(--t1);margin-bottom:8px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink3);border:1px solid var(--l2);border-radius:10px;padding:9px 16px;font-size:12px;color:var(--t1);z-index:9999;display:flex;align-items:center;gap:7px;animation:fade-up .25s ease both;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+@keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+@media(max-width:768px){
+  #app{grid-template-columns:1fr}
+  #sidebar{display:none}
+  .pcard-inner{grid-template-columns:1fr}
+  .pmedia{height:180px}
+  .pmedia-thumb{min-height:180px}
+  .pmedia-overlay{background:linear-gradient(to bottom,transparent 50%,rgba(13,13,31,.95) 100%)}
+  .detail-hero{grid-template-columns:1fr}
+  .panel-grid{grid-template-columns:repeat(2,1fr)}
+  .opp-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<nav id="topnav">
+  <div class="logo" onclick="showView('discover')"><div class="logo-mark">⚡</div>Pulse</div>
+  <div class="live-chip"><span class="live-dot"></span><span id="live-count">Connecting…</span></div>
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input id="searchInput" placeholder="Search creators, concepts, hashtags…" oninput="applyFilters()"/>
+  </div>
+  <div class="scraper-bar">
+    <span id="pill-tiktok" class="spill loading">🎵 TikTok</span>
+    <span id="pill-instagram" class="spill loading">📸 IG</span>
+    <span id="pill-youtube" class="spill loading">▶ YT</span>
+  </div>
+  <div class="nav-actions">
+    <button class="nav-btn" title="Refresh" onclick="loadData()">↻</button>
+  </div>
+</nav>
+<aside id="sidebar">
+  <div class="nav-section">Discover</div>
+  <div class="nav-item active" id="nav-emerging" onclick="setNav(this,'emerging')">⚡ Emerging Now <span class="nav-hot"></span></div>
+  <div class="nav-item" id="nav-opportunity" onclick="setNav(this,'opportunity')">🔥 Best Opportunities <span class="nav-badge">NEW</span></div>
+  <div class="nav-section">Platform</div>
+  <div class="nav-item" onclick="setSourceFilter('tiktok',this)">🎵 TikTok</div>
+  <div class="nav-item" onclick="setSourceFilter('instagram',this)">📸 Instagram</div>
+  <div class="nav-item" onclick="setSourceFilter('youtube',this)">▶ YouTube</div>
+  <div class="nav-section">Age</div>
+  <div class="nav-item" onclick="setAgeFilter('HOT',this)">🔴 HOT</div>
+  <div class="nav-item" onclick="setAgeFilter('EARLY',this)">🟡 EARLY</div>
+  <div class="nav-item" onclick="setAgeFilter('RISING',this)">🟢 RISING</div>
+  <div class="nav-section">Opportunity</div>
+  <div class="nav-item" onclick="setOppFilter('EXCEPTIONAL',this)">🔥 Exceptional</div>
+  <div class="nav-item" onclick="setOppFilter('STRONG',this)">🟢 Strong</div>
+  <div class="nav-item" onclick="setOppFilter('INTERESTING',this)">🟡 Interesting</div>
+  <div class="nav-section">Quick Filter</div>
+  <div class="nav-item" onclick="setQuickFilter('low_competition',this)">✨ Low Competition</div>
+  <div class="nav-section">Competition</div>
+  <div class="nav-item" onclick="setCompFilter('NONE',this)">✅ No Competition</div>
+  <div class="nav-item" onclick="setCompFilter('LOW',this)">🟢 Low</div>
+  <div class="nav-item" onclick="setCompFilter('HIGH',this)">🔴 High</div>
+  <div class="nav-item" onclick="setCompFilter('UNKNOWN',this)">❓ Unknown</div>
+  <div class="nav-section">Category</div>
+  <div class="cat-list" id="catList"></div>
+</aside>
+<div id="main">
+  <div id="view-discover" class="view active">
+    <div class="page-header">
+      <h1 class="page-title">Catch it <em>before it peaks</em></h1>
+      <p class="page-sub" id="page-sub">Loading…</p>
+    </div>
+    <div class="filter-row" id="filterRow">
+      <button class="ftab active" onclick="setTab(this,'all')">All</button>
+      <button class="ftab" onclick="setTab(this,'tiktok')">🎵 TikTok</button>
+      <button class="ftab" onclick="setTab(this,'instagram')">📸 Instagram</button>
+      <button class="ftab" onclick="setTab(this,'youtube')">▶ YouTube</button>
+      <button class="ftab fire-tab" onclick="setTab(this,'low_comp')">✨ Low Competition</button>
+      <div class="fdiv"></div>
+      <select class="sort-sel" onchange="activeSort=this.value;applyFilters()">
+        <option value="opportunity_score">Opportunity</option>
+        <option value="trend_score">Trend Score</option>
+        <option value="meme_potential">Meme Potential</option>
+        <option value="brandability">Brandability</option>
+        <option value="cross_platform_score">Cross-Platform</option>
+        <option value="newest">Newest</option>
+      </select>
+    </div>
+    <div class="opp-section" id="oppSection" style="display:none">
+      <div class="opp-section-title">🔥 Best Opportunities</div>
+      <div class="opp-grid" id="oppGrid"></div>
+    </div>
+    <div class="feed" id="feed"></div>
+  </div>
+</div>
+</div>
+
+<!-- Detail overlay -->
+<div id="detail-overlay" onclick="e=>e.target===this&&closeDetail()">
+  <div class="detail-panel" id="detail-panel">
+    <button class="detail-close" onclick="closeDetail()" style="position:absolute;top:14px;right:14px;z-index:10">✕</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<script>
+// ── Supabase config ──────────────────────────────────────────────────────────
+const SB_URL  = 'https://abpedxaniaqkxvlyypnt.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFicGVkeGFuaWFxa3h2bHl5cG50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYwNTM3ODUsImV4cCI6MjEwMTYyOTc4NX0.wcpW2EzTI4gGbOes5i0UTypyDpddFeV9CuZ5QSMqVZU';
+
+async function sbFetch(path) {
+  const r = await fetch(SB_URL + path, {
+    headers: { 'apikey': SB_ANON, 'Authorization': 'Bearer ' + SB_ANON }
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return r.json();
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let ALL = [], activeSource = 'all', activeSort = 'opportunity_score';
+let activeCat = 'All', activeAge = '', activeOppLevel = '', activeCompLevel = '';
+let activeQuick = '', activeView = 'emerging';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const fmt = n => n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1000 ? (n/1000).toFixed(1)+'K' : String(n||0);
+const since = iso => { if(!iso) return '—'; const s=(Date.now()-new Date(iso))/1000; return s<60?'just now':s<3600?Math.round(s/60)+'m ago':s<86400?Math.round(s/3600)+'h ago':Math.round(s/86400)+'d ago'; };
+const scoreColor = s => s>=80?'var(--grow)':s>=65?'var(--warn)':s>=50?'var(--fire)':'var(--t3)';
+const toast = msg => { const el=document.createElement('div'); el.className='toast'; el.textContent='✓ '+msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2200); };
+const platIcon = s => ({tiktok:'🎵',instagram:'📸',youtube:'▶'}[s]||'🌐');
+const platLabel = s => ({tiktok:'TikTok',instagram:'Instagram',youtube:'YouTube'}[s]||s);
+const catEmoji = c => ({AI:'🤖',Technology:'⚡',Finance:'💰',Gaming:'🎮',Entertainment:'🎬',Animals:'🐾',Memes:'😂',InternetCulture:'🌐',Science:'🔬',Sports:'🏆'}[c]||'📌');
+const nullDisplay = (v, suffix='') => v===null||v===undefined ? '<span style="color:var(--t3);font-style:italic">—</span>' : v+suffix;
+
+function oppLevelColor(l) {
+  return {EXCEPTIONAL:'var(--fire)',STRONG:'var(--grow)',INTERESTING:'var(--warn)',CROWDED:'var(--fire)',LOW:'var(--t3)',UNKNOWN:'var(--t3)'}[l]||'var(--t3)';
+}
+function oppLevelEmoji(l) {
+  return {EXCEPTIONAL:'🔥',STRONG:'🟢',INTERESTING:'🟡',CROWDED:'🟠',LOW:'🔴',UNKNOWN:'❓'}[l]||'❓';
+}
+function compLevelClass(l) {
+  return {NONE:'zero',LOW:'low',MEDIUM:'medium',HIGH:'high','VERY_HIGH':'very-high',UNKNOWN:'unknown'}[l]||'unknown';
+}
+function ageDotColor(b) {
+  return {HOT:'var(--danger)',EARLY:'var(--fire)',RISING:'var(--warn)',WATCH:'var(--grow)',HISTORICAL:'var(--t3)'}[b]||'var(--t3)';
+}
+
+function setStatus(src, st) {
+  const el = document.getElementById('pill-'+src);
+  if (!el) return;
+  el.className = 'spill ' + st;
+  el.textContent = {ok:'✓ ',loading:'⟳ ',err:'✕ '}[st] + platLabel(src);
+}
+
+// ── Data loading ─────────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('feed').innerHTML = Array(6).fill('<div class="skel"></div>').join('');
+  document.getElementById('oppSection').style.display = 'none';
+  setStatus('tiktok','loading'); setStatus('instagram','loading'); setStatus('youtube','loading');
+
+  try {
+    const data = await sbFetch(
+      '/rest/v1/trends?select=id,source,title,caption,creator_username,creator_name,' +
+      'thumbnail_url,url,category,age_bucket,trend_score,views,likes,comments,' +
+      'opportunity_score,opportunity_level,opportunity_reason,opportunity_confidence,' +
+      'opportunity_confidence_level,opportunity_signals_missing,' +
+      'meme_potential,meme_reason,brandability,brandability_reason,' +
+      'competition_score,competition_level,competition_checked_at,' +
+      'dex_count,dex_count_is_capped,meaningful_token_count,' +
+      'cross_platform_score,cluster_id,published_at,is_emerging' +
+      '&is_emerging=eq.true&order=trend_score.desc&limit=100'
+    );
+    ALL = data || [];
+
+    // Platform pills
+    const sources = [...new Set(ALL.map(t=>t.source))];
+    ['tiktok','instagram','youtube'].forEach(s => setStatus(s, sources.includes(s)?'ok':'err'));
+
+    document.getElementById('live-count').textContent = `Live · ${ALL.length} emerging trends`;
+    document.getElementById('page-sub').textContent = `${ALL.length} trends · Updated ${new Date().toLocaleTimeString()}`;
+
+    renderCats();
+    applyFilters();
+    renderOppGrid();
+  } catch(e) {
+    console.error(e);
+    ['tiktok','instagram','youtube'].forEach(s => setStatus(s,'err'));
+    document.getElementById('feed').innerHTML = `<div class="err-state"><h3>⚠ Could not load trends</h3><p>${e.message}</p></div>`;
+  }
+}
+
+// ── Filters ──────────────────────────────────────────────────────────────────
+function applyFilters() {
+  let f = [...ALL];
+  if (activeSource !== 'all') {
+    if (activeSource === 'low_comp') {
+      f = f.filter(t => t.competition_level === 'NONE' || t.competition_level === 'LOW');
+    } else {
+      f = f.filter(t => t.source === activeSource);
+    }
+  }
+  if (activeCat !== 'All') f = f.filter(t => t.category === activeCat);
+  if (activeAge)      f = f.filter(t => t.age_bucket === activeAge);
+  if (activeOppLevel) f = f.filter(t => t.opportunity_level === activeOppLevel);
+  if (activeCompLevel) f = f.filter(t => t.competition_level === activeCompLevel);
+  if (activeQuick === 'low_competition') f = f.filter(t => t.competition_level === 'NONE' || t.competition_level === 'LOW');
+
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (q) f = f.filter(t =>
+    (t.title||'').toLowerCase().includes(q) ||
+    (t.creator_username||'').toLowerCase().includes(q) ||
+    (t.category||'').toLowerCase().includes(q)
+  );
+
+  // NULL values sort to bottom (not treated as 0)
+  const cmp = (a, b, key) => {
+    const av = a[key], bv = b[key];
+    if (av === null && bv === null) return 0;
+    if (av === null) return 1;   // null → bottom
+    if (bv === null) return -1;
+    return Number(bv) - Number(av);
+  };
+  if (activeSort === 'opportunity_score') f.sort((a,b) => cmp(a,b,'opportunity_score'));
+  else if (activeSort === 'trend_score') f.sort((a,b) => cmp(a,b,'trend_score'));
+  else if (activeSort === 'meme_potential') f.sort((a,b) => cmp(a,b,'meme_potential'));
+  else if (activeSort === 'brandability') f.sort((a,b) => cmp(a,b,'brandability'));
+  else if (activeSort === 'cross_platform_score') f.sort((a,b) => cmp(a,b,'cross_platform_score'));
+  else if (activeSort === 'newest') f.sort((a,b) => new Date(b.published_at)-new Date(a.published_at));
+
+  renderFeed(f);
+}
+
+function setTab(el, src) {
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  activeSource = src;
+  applyFilters();
+}
+function setNav(el, view) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  activeView = view;
+  document.getElementById('oppSection').style.display = view === 'opportunity' ? 'block' : 'none';
+  if (view === 'opportunity') {
+    document.getElementById('feed').style.display = 'none';
+    renderOppGrid();
+  } else {
+    document.getElementById('feed').style.display = '';
+    applyFilters();
+  }
+}
+function setSourceFilter(src, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  activeSource = src; activeAge = ''; activeOppLevel = ''; activeCompLevel = ''; activeQuick = '';
+  applyFilters();
+}
+function setAgeFilter(age, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  activeAge = age; activeSource = 'all';
+  applyFilters();
+}
+function setOppFilter(level, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  activeOppLevel = level; activeSource = 'all';
+  applyFilters();
+}
+function setCompFilter(level, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  activeCompLevel = level; activeSource = 'all';
+  applyFilters();
+}
+function setQuickFilter(q, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  activeQuick = q; activeSource = 'all';
+  applyFilters();
+}
+
+function renderCats() {
+  const cats = ['All', ...new Set(ALL.map(t=>t.category).filter(Boolean))].sort();
+  document.getElementById('catList').innerHTML = cats.map(c =>
+    `<button class="cat-btn ${c===activeCat?'active':''}" onclick="filterCat('${c}',this)">
+      ${catEmoji(c)} ${c}
+      <span class="cat-count">${c==='All'?ALL.length:ALL.filter(t=>t.category===c).length}</span>
+    </button>`
+  ).join('');
+}
+function filterCat(n, el) {
+  activeCat = n;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  applyFilters();
+}
+
+// ── Opportunity Grid ─────────────────────────────────────────────────────────
+function renderOppGrid() {
+  const top = [...ALL]
+    .filter(t => t.opportunity_score !== null)
+    .sort((a,b) => (b.opportunity_score??-1)-(a.opportunity_score??-1))
+    .slice(0, 9);
+
+  if (!top.length) { document.getElementById('oppGrid').innerHTML = '<p style="color:var(--t3);font-size:12px">No scored trends yet.</p>'; return; }
+
+  document.getElementById('oppGrid').innerHTML = top.map(t => {
+    const oc = oppLevelColor(t.opportunity_level);
+    const oe = oppLevelEmoji(t.opportunity_level);
+    const concept = (t.title||'').slice(0,40).replace(/[^\w\s\-]/g,'').trim() || t.category;
+    return `<div class="opp-card" onclick="openDetail('${t.id}')">
+      <div class="opp-card-top">
+        <div class="opp-concept">${concept}</div>
+        <div class="opp-level-badge" style="background:${oc}20;color:${oc}">${oe} ${t.opportunity_level||'—'}</div>
+      </div>
+      <div class="opp-metrics">
+        <div class="opp-metric">
+          <span class="opp-metric-v" style="color:${scoreColor(t.trend_score)}">${t.trend_score||'—'}</span>
+          <span class="opp-metric-l">Trend</span>
+        </div>
+        <div class="opp-metric">
+          <span class="opp-metric-v" style="color:var(--nova)">${t.meme_potential!==null?t.meme_potential:'—'}</span>
+          <span class="opp-metric-l">Meme</span>
+        </div>
+        <div class="opp-metric">
+          <span class="opp-metric-v" style="color:var(--volt)">${t.brandability!==null?t.brandability:'—'}</span>
+          <span class="opp-metric-l">Brand</span>
+        </div>
+      </div>
+      <div class="opp-footer">
+        <div class="opp-plat-icons">${platIcon(t.source)} <span style="font-size:10px;color:var(--t3)">${platLabel(t.source)}</span></div>
+        <div>
+          <div class="opp-score-big" style="color:${oc}">${t.opportunity_score!==null?t.opportunity_score:'—'}</div>
+          <div class="opp-conf">${t.opportunity_confidence_level||''}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Feed rendering ────────────────────────────────────────────────────────────
+function renderFeed(posts) {
+  const feed = document.getElementById('feed');
+  if (!posts.length) { feed.innerHTML='<p style="color:var(--t2);padding:40px 0;text-align:center">No trends match this filter.</p>'; return; }
+  feed.innerHTML = posts.map((t,i) => renderCard(t,i)).join('');
+}
+
+function renderCard(t, idx) {
+  const sc = scoreColor(t.trend_score);
+  const oc = oppLevelColor(t.opportunity_level);
+  const oe = oppLevelEmoji(t.opportunity_level);
+  const initials = (t.creator_username||t.creator_name||'UN').replace(/[@_]/g,'').slice(0,2).toUpperCase();
+  const thumb = t.thumbnail_url || catFallback(t.category);
+  const compCls = compLevelClass(t.competition_level);
+  const ageDot = ageDotColor(t.age_bucket);
+
+  // Competition display
+  let compDisplay = '';
+  if (t.competition_level === 'NONE') compDisplay = '<span style="color:var(--grow);font-weight:700">✓ No tokens</span>';
+  else if (!t.competition_checked_at) compDisplay = '<span style="color:var(--t3)">Not checked</span>';
+  else if (t.competition_level === 'UNKNOWN') compDisplay = `<span style="color:var(--warn)">30+ (cap)</span>`;
+  else compDisplay = `<span class="${compCls}" style="font-weight:700">${t.competition_level}</span>`;
+
+  // Opportunity mini panel
+  const hasopp = t.opportunity_score !== null;
+  const oppMini = hasopp ? `
+    <div class="opp-mini">
+      <div class="opp-mini-score" style="color:${oc}">${t.opportunity_score}</div>
+      <div class="opp-mini-right">
+        <div class="opp-mini-level" style="color:${oc}">${oe} ${t.opportunity_level||'—'}</div>
+        <div class="opp-mini-reason">${(t.opportunity_reason||'').slice(0,80)}</div>
+        <div class="opp-mini-subs">
+          ${t.meme_potential!==null?`<span class="opp-mini-sub">Meme <span>${t.meme_potential}</span></span>`:''}
+          ${t.brandability!==null?`<span class="opp-mini-sub">Brand <span>${t.brandability}</span></span>`:''}
+          ${t.cross_platform_score!==null?`<span class="opp-mini-sub">Cross-plat <span>${t.cross_platform_score}</span></span>`:''}
+        </div>
+      </div>
+      <div>
+        <div class="conf-badge ${t.opportunity_confidence_level||'LOW'}">${t.opportunity_confidence_level||'LOW'}</div>
+      </div>
+    </div>` : '';
+
+  return `<div class="pcard" style="animation-delay:${Math.min(idx,12)*.05}s">
+  <div class="pcard-inner">
+    <div class="pmedia">
+      <img class="pmedia-thumb" src="${thumb}" alt="" loading="lazy" onerror="this.src='${catFallback(t.category)}'"/>
+      <div class="pmedia-overlay"></div>
+      <div class="plat-badge ${t.source||''}">${platIcon(t.source)} ${platLabel(t.source)}</div>
+      <div class="viral-rank"><div class="viral-rank-n">#${idx+1}</div><div class="viral-rank-l">Rank</div></div>
+      ${t.url?`<a href="${t.url}" target="_blank" rel="noopener" class="play-btn">↗ View</a>`:''}
+    </div>
+    <div class="pdata">
+      <div class="creator-row">
+        <div class="creator-avatar">${initials}</div>
+        <div style="min-width:0;flex:1">
+          <div class="creator-name">${t.creator_name||t.creator_username||'Unknown'}</div>
+          <div class="creator-handle">@${t.creator_username||'—'}</div>
+        </div>
+        <div class="upload-time">${since(t.published_at)}</div>
+      </div>
+      <div class="pcaption">${(t.title||t.caption||'').slice(0,160)}</div>
+      <div class="pstats">
+        <div class="pstat"><span class="pstat-v">${fmt(t.views)}</span><span class="pstat-l">Views</span></div>
+        <div class="pstat"><span class="pstat-v fire">${t.trend_score||'—'}</span><span class="pstat-l">Score</span></div>
+        <div class="pstat"><span class="pstat-v">${fmt(t.likes)}</span><span class="pstat-l">Likes</span></div>
+        <div class="pstat"><span class="pstat-v">${fmt(t.comments)}</span><span class="pstat-l">Comments</span></div>
+      </div>
+      <div class="age-row">
+        <div class="age-dot" style="background:${ageDot}"></div>
+        <div class="age-text">${t.category||'—'} · ${t.age_bucket||'—'}</div>
+        <span class="age-label" style="color:${ageDot}">${t.age_bucket||'—'}</span>
+        ${t.competition_level?`<span style="font-size:10px;color:var(--t3);margin-left:6px">Comp: ${compDisplay}</span>`:''}
+      </div>
+      ${oppMini}
+    </div>
+  </div>
+  <div class="pcard-footer">
+    <div class="tscore-badge" style="color:${sc};border-color:${sc};background:${sc}18">
+      <span style="font-family:var(--fm);font-size:15px;font-weight:800">${t.trend_score||'—'}</span>
+      <span style="font-size:10px;color:var(--t3);font-weight:400">trend</span>
+    </div>
+    ${hasopp?`<div class="tscore-badge" style="color:${oc};border-color:${oc};background:${oc}18">
+      <span style="font-family:var(--fm);font-size:15px;font-weight:800">${t.opportunity_score}</span>
+      <span style="font-size:10px;color:var(--t3);font-weight:400">opp</span>
+    </div>`:''}
+    <span style="font-size:11px;color:var(--t3)">${t.age_bucket||''}</span>
+    <div class="spacer"></div>
+    <button class="action-btn primary" onclick="openDetail('${t.id}')">📊 Details</button>
+    ${t.url?`<a href="${t.url}" target="_blank" rel="noopener" class="action-btn">↗ View</a>`:''}
+  </div>
+</div>`;
+}
+
+function catFallback(cat) {
+  return ({
+    AI:'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=500&q=75',
+    Technology:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=500&q=75',
+    Gaming:'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=500&q=75',
+    Entertainment:'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&q=75',
+    Animals:'https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=500&q=75',
+    Memes:'https://images.unsplash.com/photo-1531747118685-ca8fa6e08806?w=500&q=75',
+  }[cat]||'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=500&q=75');
+}
+
+// ── Detail Panel ─────────────────────────────────────────────────────────────
+async function openDetail(id) {
+  const t = ALL.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('detail-content').innerHTML = renderDetailLoading(t);
+
+  // Load competition checks + snapshots in parallel
+  const [checks, snaps, cluster] = await Promise.all([
+    sbFetch(`/rest/v1/competition_checks?trend_id=eq.${id}&source=eq.dexscreener&order=checked_at.desc&limit=3`).catch(()=>[]),
+    sbFetch(`/rest/v1/trend_snapshots?trend_id=eq.${id}&order=captured_at.desc&limit=10`).catch(()=>[]),
+    t.cluster_id ? sbFetch(`/rest/v1/trend_clusters?id=eq.${t.cluster_id}&select=canonical_concept,unique_platforms,unique_creators,platform_count,creator_count,cross_platform_score`).catch(()=>[]) : Promise.resolve([]),
+  ]);
+
+  document.getElementById('detail-content').innerHTML = renderDetail(t, checks, snaps, cluster[0]||null);
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+document.getElementById('detail-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('detail-overlay')) closeDetail();
+});
+
+function renderDetailLoading(t) {
+  return `<div style="padding:40px;text-align:center;color:var(--t2)">
+    <div style="font-size:24px;margin-bottom:10px">⟳</div>
+    <div>Loading ${(t.title||'').slice(0,40)}…</div>
+  </div>`;
+}
+
+function renderDetail(t, checks, snaps, cluster) {
+  const oc = oppLevelColor(t.opportunity_level);
+  const oe = oppLevelEmoji(t.opportunity_level);
+  const sc = scoreColor(t.trend_score);
+  const thumb = t.thumbnail_url || catFallback(t.category);
+
+  // Competition tokens from checks
+  let tokenRows = '';
+  if (checks && checks.length) {
+    const tokens = checks.flatMap(c => {
+      try { return Array.isArray(c.tokens_found) ? c.tokens_found.slice(0,5) : []; } catch{ return []; }
+    }).filter(tk => {
+      if (!tk) return false;
+      const mt = (tk.match_type||'').toUpperCase();
+      // DB stores 'EXACT_MATCH' or 'STRONG_CONCEPT_MATCH'; check-level stores 'EXACT'/'STRONG'
+      return mt === 'EXACT_MATCH' || mt === 'STRONG_CONCEPT_MATCH' || mt === 'EXACT' || mt === 'STRONG';
+    }).slice(0,8);
+
+    if (tokens.length) {
+      tokenRows = `<div class="token-list">` + tokens.map(tk => {
+        const mt = (tk.match_type||'').toUpperCase();
+        const matchCls = (mt === 'EXACT_MATCH' || mt === 'EXACT') ? 'exact' : 'strong';
+        const mcap = tk.market_cap ? '$'+fmt(tk.market_cap) : '—';
+        const liq  = tk.liquidity  ? '$'+fmt(tk.liquidity)  : '—';
+        return `<div class="token-row">
+          <div class="token-name">${tk.name||'—'}</div>
+          <span class="token-sym">${tk.symbol||''}</span>
+          <span class="token-chain">${tk.chain||''}</span>
+          <span class="token-mcap">Liq ${liq}</span>
+          <span class="token-match ${matchCls}">${matchCls}</span>
+        </div>`;
+      }).join('') + '</div>';
+    }
+  }
+
+  // Snapshots
+  let snapContent = '';
+  if (!snaps || snaps.length < 2) {
+    snapContent = '<div class="snap-empty">Collecting more data — check back after more collection cycles.</div>';
+  } else {
+    const latest = snaps[0];
+    const oldest = snaps[snaps.length-1];
+    const viewGrowth = oldest.views > 0 ? Math.round((latest.views - oldest.views) / oldest.views * 100) : null;
+    snapContent = `<div class="panel-grid">
+      <div class="metric-box"><span class="metric-v">${fmt(latest.views||0)}</span><span class="metric-l">Latest Views</span></div>
+      <div class="metric-box"><span class="metric-v">${fmt(latest.likes||0)}</span><span class="metric-l">Latest Likes</span></div>
+      <div class="metric-box"><span class="metric-v" style="color:${viewGrowth>0?'var(--grow)':'var(--t3)'}">${viewGrowth!==null?(viewGrowth>0?'+':'')+viewGrowth+'%':'—'}</span><span class="metric-l">View Growth</span></div>
+    </div>
+    <div style="font-size:10px;color:var(--t3);margin-top:6px">${snaps.length} snapshots · ${since(oldest.captured_at)} → ${since(latest.captured_at)}</div>`;
+  }
+
+  // Cross-platform
+  let cpContent = '';
+  if (cluster) {
+    const allPlats = ['tiktok','instagram','youtube'];
+    const detected = cluster.unique_platforms || [];
+    cpContent = allPlats.map(p => `
+      <div class="cp-platform-row">
+        <span class="cp-plat-name">${platIcon(p)} ${platLabel(p)}</span>
+        <span class="cp-check">${detected.includes(p)?'✅':'—'}</span>
+      </div>`).join('') +
+      `<div style="margin-top:10px;display:flex;gap:16px">
+        <div><span style="font-family:var(--fm);font-weight:700">${cluster.platform_count}</span> <span style="font-size:10px;color:var(--t3)">platforms</span></div>
+        <div><span style="font-family:var(--fm);font-weight:700">${cluster.creator_count}</span> <span style="font-size:10px;color:var(--t3)">creators</span></div>
+        <div><span style="font-family:var(--fm);font-weight:700">${cluster.cross_platform_score||'—'}</span> <span style="font-size:10px;color:var(--t3)">CP score</span></div>
+      </div>`;
+  } else {
+    cpContent = `<div class="cp-platform-row"><span class="cp-plat-name">${platIcon(t.source)} ${platLabel(t.source)}</span><span class="cp-check">✅</span></div>
+      <div style="margin-top:8px;font-size:11px;color:var(--t3)">Currently detected on 1 platform</div>`;
+  }
+
+  // Competition display
+  const compChecked = t.competition_checked_at ? since(t.competition_checked_at) : 'Never';
+  const dexDisplay = t.dex_count === null ? 'Not checked' :
+    t.dex_count_is_capped ? `30+ results (cap hit — true total unknown)` :
+    `${t.dex_count} pairs · ${t.meaningful_token_count||0} meaningful`;
+
+  // Missing signals
+  const missingSigs = (t.opportunity_signals_missing||[]);
+  const missingNote = missingSigs.length ? `<div style="font-size:10px;color:var(--warn);margin-top:6px">Missing signals: ${missingSigs.join(', ')}</div>` : '';
+
+  return `
+  <div class="detail-hero" style="position:relative">
+    <img class="detail-thumb" src="${thumb}" alt="" onerror="this.src='${catFallback(t.category)}'"/>
+    <div class="detail-hero-data">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span class="plat-badge ${t.source||''}" style="position:relative;top:auto;left:auto">${platIcon(t.source)} ${platLabel(t.source)}</span>
+        <span style="font-size:11px;color:var(--t3)">${since(t.published_at)}</span>
+      </div>
+      <div class="detail-title">${(t.title||t.caption||'').slice(0,120)}</div>
+      <div style="font-size:11px;color:var(--signal2);margin-top:4px">@${t.creator_username||'—'}</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <div class="tscore-badge" style="color:${sc};border-color:${sc};background:${sc}18">
+          <span style="font-family:var(--fm);font-size:16px;font-weight:800">${t.trend_score||'—'}</span>
+          <span style="font-size:10px;color:var(--t3)">trend</span>
+        </div>
+        ${t.opportunity_score!==null?`<div class="tscore-badge" style="color:${oc};border-color:${oc};background:${oc}18">
+          <span style="font-family:var(--fm);font-size:16px;font-weight:800">${t.opportunity_score}</span>
+          <span style="font-size:10px;color:var(--t3)">opp</span>
+        </div>`:''}
+        <div class="conf-badge ${t.opportunity_confidence_level||'LOW'}">${t.opportunity_confidence_level||'LOW'} confidence</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
+        <div class="metric-box"><span class="metric-v">${fmt(t.views)}</span><span class="metric-l">Views</span></div>
+        <div class="metric-box"><span class="metric-v">${fmt(t.likes)}</span><span class="metric-l">Likes</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="detail-body">
+
+    <!-- Meme Opportunity -->
+    <div class="panel">
+      <div class="panel-title">🔥 Meme Opportunity</div>
+      <div class="panel-grid">
+        <div class="metric-box"><span class="metric-v" style="color:${sc}">${t.trend_score||'—'}</span><span class="metric-l">Trend Score</span></div>
+        <div class="metric-box"><span class="metric-v" style="color:var(--nova)">${t.meme_potential!==null?t.meme_potential:'—'}</span><span class="metric-l">Meme Potential</span></div>
+        <div class="metric-box"><span class="metric-v" style="color:var(--volt)">${t.brandability!==null?t.brandability:'—'}</span><span class="metric-l">Brandability</span></div>
+        <div class="metric-box"><span class="metric-v" style="color:var(--signal2)">${t.cross_platform_score!==null?t.cross_platform_score:'—'}</span><span class="metric-l">Cross-Platform</span></div>
+        <div class="metric-box"><span class="metric-v ${compLevelClass(t.competition_level)}">${t.competition_level||'—'}</span><span class="metric-l">Competition</span></div>
+        <div class="metric-box">
+          <span class="metric-v" style="color:${oc};font-size:20px">${t.opportunity_score!==null?t.opportunity_score:'—'}</span>
+          <span class="metric-l">Opp Score</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;align-items:center;gap:8px">
+        <div style="font-size:16px">${oe}</div>
+        <div style="font-family:var(--fd);font-size:13px;font-weight:700;color:${oc}">${t.opportunity_level||'—'}</div>
+        <div class="conf-badge ${t.opportunity_confidence_level||'LOW'}" style="margin-left:auto">${t.opportunity_confidence_level||'LOW'}</div>
+      </div>
+      ${t.opportunity_reason?`<div class="reason-text">${t.opportunity_reason}</div>`:''}
+      ${missingNote}
+      ${t.meme_reason?`<div style="margin-top:8px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Meme reason</div><div class="reason-text">${t.meme_reason}</div></div>`:''}
+      ${t.brandability_reason?`<div style="margin-top:8px"><div style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">Brand reason</div><div class="reason-text">${t.brandability_reason}</div></div>`:''}
+    </div>
+
+    <!-- Competition -->
+    <div class="panel">
+      <div class="panel-title">⚔️ Competition</div>
+      <div class="comp-row">
+        <span class="comp-source">📊 DexScreener</span>
+        <span class="comp-val ${t.dex_count_is_capped?'capped':t.dex_count===0?'zero':t.dex_count===null?'unknown':''}">${
+          t.dex_count===null ? 'Not checked' :
+          t.dex_count_is_capped ? '30+ results (cap — true total unknown)' :
+          `${t.dex_count} pairs · ${t.meaningful_token_count||0} meaningful`
+        }</span>
+      </div>
+      <div class="comp-row">
+        <span class="comp-source">🚀 Pump.fun</span>
+        <span class="comp-val unknown">Unknown — not checked</span>
+      </div>
+      <div class="comp-row">
+        <span class="comp-source">📈 GMGN</span>
+        <span class="comp-val unknown">Unknown — not checked</span>
+      </div>
+      <div class="comp-row">
+        <span class="comp-source">⚡ Raydium</span>
+        <span class="comp-val unknown">Unknown — not checked</span>
+      </div>
+      <div class="comp-row">
+        <span class="comp-source">🦅 Birdeye</span>
+        <span class="comp-val unknown">Unknown — not checked</span>
+      </div>
+      <div style="font-size:10px;color:var(--t3);margin-top:10px">Last checked: ${compChecked} · <span style="color:var(--t3);font-style:italic">0 = confirmed zero · Unknown = not yet verified</span></div>
+      ${tokenRows}
+    </div>
+
+    <!-- Cross-Platform -->
+    <div class="panel">
+      <div class="panel-title">🌐 Cross-Platform</div>
+      ${cpContent}
+    </div>
+
+    <!-- Timeline -->
+    <div class="panel">
+      <div class="panel-title">📈 Timeline</div>
+      ${snapContent}
+    </div>
+
+  </div>`;
+}
+
+function showView(n) {
+  document.getElementById('main').scrollTop = 0;
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
